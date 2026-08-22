@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import Player from './Player'
 import MyPlayer from './MyPlayer'
-import { sittingShiftData } from './Player'
+import { sittingShiftData, WALK_SPEED, RUN_SPEED, RUN_ANIM_TIME_SCALE } from './Player'
 import WebRTC from '../web/WebRTC'
 import { Event, phaserEvents } from '../events/EventCenter'
 
@@ -10,6 +10,7 @@ export default class OtherPlayer extends Player {
   private lastUpdateTimestamp?: number
   private connectionBufferTime = 0
   private connected = false
+  private running = false
   private playContainerBody: Phaser.Physics.Arcade.Body
   private myPlayer?: MyPlayer
 
@@ -72,6 +73,14 @@ export default class OtherPlayer extends Player {
         }
         break
 
+      case 'running':
+        if (typeof value === 'boolean') {
+          this.running = value
+          // match the animation playback rate the running player sees locally
+          this.anims.timeScale = value ? RUN_ANIM_TIME_SCALE : 1
+        }
+        break
+
       case 'readyToConnect':
         if (typeof value === 'boolean') {
           this.readyToConnect = value
@@ -120,7 +129,9 @@ export default class OtherPlayer extends Player {
       }
     }
 
-    const speed = 200 // speed is in unit of pixels per second
+    // interpolate at the same speed the player is actually moving at, otherwise a
+    // running player would keep outrunning their remote sprite
+    const speed = this.running ? RUN_SPEED : WALK_SPEED // speed is in unit of pixels per second
     const delta = (speed / 1000) * dt // minimum distance that a player can move in a frame (dt is in unit of ms)
     let dx = this.targetPosition[0] - this.x
     let dy = this.targetPosition[1] - this.y

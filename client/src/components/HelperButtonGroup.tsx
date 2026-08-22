@@ -160,6 +160,9 @@ export default function HelperButtonGroup() {
                 <strong>W, A, S, D or arrow keys</strong> to move
               </li>
               <li>
+                <strong>Space + move keys</strong> to run
+              </li>
+              <li>
                 <strong>E</strong> to sit down (when facing a chair)
               </li>
               <li>

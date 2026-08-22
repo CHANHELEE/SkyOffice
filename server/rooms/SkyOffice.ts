@@ -99,12 +99,13 @@ export class SkyOffice extends Room<OfficeState> {
     // when receiving updatePlayer message, call the PlayerUpdateCommand
     this.onMessage(
       Message.UPDATE_PLAYER,
-      (client, message: { x: number; y: number; anim: string }) => {
+      (client, message: { x: number; y: number; anim: string; running: boolean }) => {
         this.dispatcher.dispatch(new PlayerUpdateCommand(), {
           client,
           x: message.x,
           y: message.y,
           anim: message.anim,
+          running: message.running ?? false,
         })
       }
     )

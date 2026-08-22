@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import PlayerSelector from './PlayerSelector'
 import { PlayerBehavior } from '../../../types/PlayerBehavior'
-import { sittingShiftData } from './Player'
+import { sittingShiftData, WALK_SPEED, RUN_SPEED, RUN_ANIM_TIME_SCALE } from './Player'
 import Player from './Player'
 import Network from '../services/Network'
 import Chair from '../items/Chair'
@@ -126,7 +126,10 @@ export default class MyPlayer extends Player {
           return
         }
 
-        const speed = 200
+        // hold space together with the movement keys to run
+        // (space is not bound to any other in-game action)
+        const running = cursors.space?.isDown ?? false
+        const speed = running ? RUN_SPEED : WALK_SPEED
         let vx = 0
         let vy = 0
 
@@ -160,7 +163,11 @@ export default class MyPlayer extends Player {
         this.playContainerBody.velocity.setLength(speed)
 
         // update animation according to velocity and send new location and anim to server
-        if (vx !== 0 || vy !== 0) network.updatePlayer(this.x, this.y, this.anims.currentAnim.key)
+        if (vx !== 0 || vy !== 0) {
+          // play the walk animation faster so running reads as running
+          this.anims.timeScale = running ? RUN_ANIM_TIME_SCALE : 1
+          network.updatePlayer(this.x, this.y, this.anims.currentAnim.key, running)
+        }
         if (vx > 0) {
           this.play(`${this.playerTexture}_run_right`, true)
         } else if (vx < 0) {
@@ -170,6 +177,7 @@ export default class MyPlayer extends Player {
         } else if (vy < 0) {
           this.play(`${this.playerTexture}_run_up`, true)
         } else {
+          this.anims.timeScale = 1
           const parts = this.anims.currentAnim.key.split('_')
           parts[1] = 'idle'
           const newAnim = parts.join('_')
@@ -185,6 +193,7 @@ export default class MyPlayer extends Player {
       case PlayerBehavior.SITTING:
         // back to idle if player press E while sitting
         if (Phaser.Input.Keyboard.JustDown(keyE)) {
+          this.anims.timeScale = 1
           const parts = this.anims.currentAnim.key.split('_')
           parts[1] = 'idle'
           this.play(parts.join('_'), true)

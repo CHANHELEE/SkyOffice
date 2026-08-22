@@ -1,5 +1,12 @@
 import Phaser from 'phaser'
 import { PlayerBehavior } from '../../../types/PlayerBehavior'
+
+/** movement speed in pixels per second */
+export const WALK_SPEED = 200
+export const RUN_SPEED = 400
+/** how much faster the walk animation is played back while running */
+export const RUN_ANIM_TIME_SCALE = 1.5
+
 /**
  * shifting distance for sitting animation
  * format: direction: [xShift, yShift, depthShift]

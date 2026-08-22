@@ -232,8 +232,13 @@ export default class Network {
   }
 
   // method to send player updates to Colyseus server
-  updatePlayer(currentX: number, currentY: number, currentAnim: string) {
-    this.room?.send(Message.UPDATE_PLAYER, { x: currentX, y: currentY, anim: currentAnim })
+  updatePlayer(currentX: number, currentY: number, currentAnim: string, running = false) {
+    this.room?.send(Message.UPDATE_PLAYER, {
+      x: currentX,
+      y: currentY,
+      anim: currentAnim,
+      running,
+    })
   }
 
   // method to send player name to Colyseus server
