@@ -5,7 +5,7 @@ import Button from '@mui/material/Button'
 import Avatar from '@mui/material/Avatar'
 import Alert from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
-import ArrowRightIcon from '@mui/icons-material/ArrowRight'
+import AcUnitIcon from '@mui/icons-material/AcUnit'
 
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation } from 'swiper'
@@ -73,7 +73,14 @@ const RoomDescription = styled.div`
   font-size: 14px;
   color: var(--deep-ice-dim);
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+
+  svg {
+    font-size: 15px;
+    color: var(--glacier);
+  }
 `
 
 const SubTitle = styled.h3`
@@ -198,7 +205,7 @@ export default function LoginDialog() {
         <h3>{roomName}</h3>
       </RoomName>
       <RoomDescription>
-        <ArrowRightIcon /> {roomDescription}
+        <AcUnitIcon /> {roomDescription}
       </RoomDescription>
       <Content>
         <Left>

@@ -8,7 +8,7 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import ShareIcon from '@mui/icons-material/Share'
 import CloseIcon from '@mui/icons-material/Close'
 import LightbulbIcon from '@mui/icons-material/Lightbulb'
-import ArrowRightIcon from '@mui/icons-material/ArrowRight'
+import AcUnitIcon from '@mui/icons-material/AcUnit'
 import GitHubIcon from '@mui/icons-material/GitHub'
 import TwitterIcon from '@mui/icons-material/Twitter'
 import VideogameAssetIcon from '@mui/icons-material/VideogameAsset'
@@ -99,7 +99,14 @@ const RoomDescription = styled.div`
   font-size: 13px;
   color: var(--deep-ice-dim);
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 6px;
+
+  svg {
+    font-size: 14px;
+    color: var(--glacier);
+  }
 `
 
 const StyledFab = styled(Fab)<{ target?: string }>`
@@ -150,10 +157,10 @@ export default function HelperButtonGroup() {
               <h3>{roomName}</h3>
             </RoomName>
             <RoomDescription>
-              <ArrowRightIcon /> 방 ID: {roomId}
+              <AcUnitIcon /> 방 ID: {roomId}
             </RoomDescription>
             <RoomDescription>
-              <ArrowRightIcon /> 설명: {roomDescription}
+              <AcUnitIcon /> 설명: {roomDescription}
             </RoomDescription>
           </Wrapper>
         )}
