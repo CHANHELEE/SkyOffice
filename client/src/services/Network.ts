@@ -1,19 +1,13 @@
 import { Client, Room } from 'colyseus.js'
 import { IComputer, IOfficeState, IPlayer, IWhiteboard } from '../../../types/IOfficeState'
 import { Message } from '../../../types/Messages'
-import { IRoomData, RoomType } from '../../../types/Rooms'
+import { RoomType } from '../../../types/Rooms'
 import { ItemType } from '../../../types/Items'
 import WebRTC from '../web/WebRTC'
 import { phaserEvents, Event } from '../events/EventCenter'
 import store from '../stores'
 import { setSessionId, setPlayerNameMap, removePlayerNameMap } from '../stores/UserStore'
-import {
-  setLobbyJoined,
-  setJoinedRoomData,
-  setAvailableRooms,
-  addAvailableRooms,
-  removeAvailableRooms,
-} from '../stores/RoomStore'
+import { setServerConnected, setJoinedRoomData } from '../stores/RoomStore'
 import {
   pushChatMessage,
   pushPlayerJoinedMessage,
@@ -24,7 +18,6 @@ import { setWhiteboardUrls } from '../stores/WhiteboardStore'
 export default class Network {
   private client: Client
   private room?: Room<IOfficeState>
-  private lobby!: Room
   webRTC?: WebRTC
 
   mySessionId!: string
@@ -36,8 +29,8 @@ export default class Network {
         ? import.meta.env.VITE_SERVER_URL
         : `${protocol}//${window.location.hostname}:2567`
     this.client = new Client(endpoint)
-    this.joinLobbyRoom().then(() => {
-      store.dispatch(setLobbyJoined(true))
+    this.checkServerReachable().then(() => {
+      store.dispatch(setServerConnected(true))
     })
 
     phaserEvents.on(Event.MY_PLAYER_NAME_CHANGE, this.updatePlayerName, this)
@@ -46,46 +39,16 @@ export default class Network {
   }
 
   /**
-   * method to join Colyseus' built-in LobbyRoom, which automatically notifies
-   * connected clients whenever rooms with "realtime listing" have updates
+   * method to confirm the server is up before we let anyone try to enter.
+   * a matchmaking request is the cheapest round trip that proves it.
    */
-  async joinLobbyRoom() {
-    this.lobby = await this.client.joinOrCreate(RoomType.LOBBY)
-
-    this.lobby.onMessage('rooms', (rooms) => {
-      store.dispatch(setAvailableRooms(rooms))
-    })
-
-    this.lobby.onMessage('+', ([roomId, room]) => {
-      store.dispatch(addAvailableRooms({ roomId, room }))
-    })
-
-    this.lobby.onMessage('-', (roomId) => {
-      store.dispatch(removeAvailableRooms(roomId))
-    })
+  async checkServerReachable() {
+    await this.client.getAvailableRooms()
   }
 
-  // method to join the public lobby
-  async joinOrCreatePublic() {
-    this.room = await this.client.joinOrCreate(RoomType.PUBLIC)
-    this.initialize()
-  }
-
-  // method to join a custom room
-  async joinCustomById(roomId: string, password: string | null) {
-    this.room = await this.client.joinById(roomId, { password })
-    this.initialize()
-  }
-
-  // method to create a custom room
-  async createCustom(roomData: IRoomData) {
-    const { name, description, password, autoDispose } = roomData
-    this.room = await this.client.create(RoomType.CUSTOM, {
-      name,
-      description,
-      password,
-      autoDispose,
-    })
+  // method to join the igloo members-only room
+  async joinIgloo(password: string) {
+    this.room = await this.client.joinOrCreate(RoomType.IGLOO, { password })
     this.initialize()
   }
 
@@ -93,7 +56,6 @@ export default class Network {
   initialize() {
     if (!this.room) return
 
-    this.lobby.leave()
     this.mySessionId = this.room.sessionId
     store.dispatch(setSessionId(this.room.sessionId))
     this.webRTC = new WebRTC(this.mySessionId, this)

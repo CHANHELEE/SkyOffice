@@ -6,6 +6,10 @@ import AlertTitle from '@mui/material/AlertTitle'
 
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
+import { openURL } from '../utils/helpers'
+
+/** the igloo web service members go back to for attendance and submissions */
+const IGLOO_WEB_URL = 'https://igloo-five.vercel.app/'
 
 const Backdrop = styled.div`
   position: fixed;
@@ -20,6 +24,8 @@ const Wrapper = styled.div`
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
 `
 
 export default function VideoConnectionDialog() {
@@ -48,6 +54,9 @@ export default function VideoConnectionDialog() {
           }}
         >
           Connect Webcam
+        </Button>
+        <Button variant="contained" color="secondary" onClick={() => openURL(IGLOO_WEB_URL)}>
+          이글루 웹사이트
         </Button>
       </Wrapper>
     </Backdrop>
