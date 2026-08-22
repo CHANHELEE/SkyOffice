@@ -4,7 +4,7 @@ import { BackgroundMode } from '../../../types/BackgroundMode'
 /**
  * The polar sky behind the office.
  *
- * The repo ships no antarctic art, so everything here is drawn at runtime:
+ * The repo ships no arctic art, so everything here is drawn at runtime:
  * a graded sky, aurora ribbons that drift and breathe, stars, and snow falling
  * across the whole view. That keeps the theme asset-free and means the colours
  * stay in step with the CSS tokens rather than being baked into a PNG.

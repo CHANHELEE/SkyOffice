@@ -216,7 +216,7 @@ export default class Game extends Phaser.Scene {
 
     this.otherPlayers = this.physics.add.group({ classType: OtherPlayer })
 
-    // The office tileset is the upstream art - there is no antarctic tileset in
+    // The office tileset is the upstream art - there is no arctic tileset in
     // the repo and pixel art is not something we can author here. Bright sky
     // around the map plus snow falling through it is what carries the theme into
     // the room, without dulling the pixel art underneath.

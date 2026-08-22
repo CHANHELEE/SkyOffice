@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import styled, { keyframes } from 'styled-components'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
@@ -152,6 +152,19 @@ export default function RoomSelectionDialog() {
   const [showSnackbar, setShowSnackbar] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState('')
   const serverConnected = useAppSelector((state) => state.room.serverConnected)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  /**
+   * Put the caret in the field so you can type and hit Enter without clicking.
+   * The second pass is for the boot frames: Phaser settling its canvas used to
+   * blow focus back to <body>, and typing silently went nowhere.
+   */
+  useEffect(() => {
+    const focus = () => passwordRef.current?.focus()
+    focus()
+    const settle = window.setTimeout(focus, 120)
+    return () => window.clearTimeout(settle)
+  }, [])
 
   const showError = (message: string) => {
     setSnackbarMessage(message)
@@ -215,16 +228,16 @@ export default function RoomSelectionDialog() {
         </Drawing>
 
         <Card>
-          <Mark>ANTARCTICA</Mark>
+          <Mark>ARCTIC</Mark>
           <Title>이글루</Title>
           <Subtitle>
-            남극 어딘가, 멤버들만 아는 자리.
+            북극 어딘가, 멤버들만 아는 자리.
             <br />
             비밀번호를 넣고 안으로 들어오세요.
           </Subtitle>
           <Form onSubmit={handleSubmit}>
             <PasswordField
-              autoFocus
+              inputRef={passwordRef}
               fullWidth
               size="small"
               type="password"

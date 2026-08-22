@@ -20,7 +20,10 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  autoFocus: true,
+  // Phaser's autoFocus pulls focus onto the window after boot, which lands on
+  // <body> and empties the password field on the entry screen. Nothing here
+  // needs it - the canvas gets focus the moment you click or move.
+  autoFocus: false,
   scene: [Bootstrap, Background, Game],
 }
 
