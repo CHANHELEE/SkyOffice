@@ -125,6 +125,13 @@ export default class Game extends Phaser.Scene {
     this.keyE = this.input.keyboard.addKey('E')
     this.keyR = this.input.keyboard.addKey('R')
     this.keyZ = this.input.keyboard.addKey('Z')
+    // One press, one arrow. Polling JustDown() in update() let a single press
+    // through several times over, and a 400ms cooldown is not tight enough to
+    // hide that - two arrows went out. The key's own down event fires once per
+    // press, because Phaser only raises it when the key was not already down.
+    // registerKeys() can run again on a rejoin, so drop the old listener first.
+    this.keyZ.removeAllListeners('down')
+    this.keyZ.on('down', this.shootArrow, this)
     this.input.keyboard.disableGlobalCapture()
     this.input.keyboard.on('keydown-ENTER', (event) => {
       store.dispatch(setShowChat(true))
@@ -285,6 +292,9 @@ export default class Game extends Phaser.Scene {
 
   /** fire a wake-up arrow in the direction my player is facing */
   private shootArrow() {
+    // the key is live from the moment it is registered, the player is not
+    if (!this.myPlayer || !this.network) return
+
     const now = this.time.now
     if (now - this.lastArrowShotAt < ARROW_COOLDOWN) return
     this.lastArrowShotAt = now
@@ -530,9 +540,6 @@ export default class Game extends Phaser.Scene {
     if (this.myPlayer && this.network) {
       this.playerSelector.update(this.myPlayer, this.cursors)
       this.myPlayer.update(this.playerSelector, this.cursors, this.keyE, this.keyR, this.network)
-      // keys are only registered once the player presses Join, so update() runs
-      // for a while before keyZ exists
-      if (this.keyZ && Phaser.Input.Keyboard.JustDown(this.keyZ)) this.shootArrow()
     }
   }
 }
