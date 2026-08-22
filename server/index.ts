@@ -1,6 +1,7 @@
 import path from 'path'
 import dotenv from 'dotenv'
 import http from 'http'
+import https from 'https'
 import express from 'express'
 import cors from 'cors'
 import { Server, matchMaker } from 'colyseus'
@@ -32,6 +33,9 @@ app.use(cors())
 app.use(express.json())
 // app.use(express.static('dist'))
 
+// what the keep-alive ping below (and any uptime monitor) hits
+app.get('/healthz', (req, res) => res.send('ok'))
+
 const server = http.createServer(app)
 const gameServer = new Server({
   server,
@@ -61,6 +65,32 @@ gameServer.define(RoomType.IGLOO, SkyOffice, {
 // register colyseus monitor AFTER registering your room handlers
 app.use('/colyseus', monitor())
 
+/**
+ * Render's free instance sleeps after 15 minutes without inbound traffic. That
+ * kills every open socket and wipes the room, and members are not told - they
+ * just find that nothing works any more.
+ *
+ * Internal work does not count as traffic, so the server asks for its own public
+ * URL to stay awake during the hours members actually use it. Note this can only
+ * KEEP the server awake, never wake it: once it sleeps there is no process left
+ * to run the timer, so the first member of the day still waits for a cold start.
+ */
+const KEEP_AWAKE_INTERVAL = 10 * 60 * 1000
+const KEEP_AWAKE_FROM_HOUR = 7 // KST
+const KEEP_AWAKE_UNTIL_HOUR = 23 // KST
+
+function keepAwakeWhileMembersAreAround(selfUrl: string) {
+  setInterval(() => {
+    // the instance runs on UTC, members are in KST
+    const hourInSeoul = (new Date().getUTCHours() + 9) % 24
+    if (hourInSeoul < KEEP_AWAKE_FROM_HOUR || hourInSeoul >= KEEP_AWAKE_UNTIL_HOUR) return
+
+    https
+      .get(`${selfUrl}/healthz`, (res) => res.resume())
+      .on('error', (error) => console.error('keep-awake ping failed:', error.message))
+  }, KEEP_AWAKE_INTERVAL)
+}
+
 gameServer
   .listen(port)
   .then(() => {
@@ -70,6 +100,16 @@ gameServer
   })
   .then((room) => {
     console.log(`igloo room is ready (roomId: ${room.roomId})`)
+
+    // RENDER_EXTERNAL_URL is injected by Render, so this stays off everywhere else
+    const selfUrl = process.env.RENDER_EXTERNAL_URL
+    if (selfUrl) {
+      keepAwakeWhileMembersAreAround(selfUrl)
+      console.log(
+        `keeping awake via ${selfUrl}/healthz every ${KEEP_AWAKE_INTERVAL / 60000} minutes, ` +
+          `${KEEP_AWAKE_FROM_HOUR}:00-${KEEP_AWAKE_UNTIL_HOUR}:00 KST`
+      )
+    }
   })
   .catch((error) => {
     console.error('failed to start the server or create the igloo room:', error)

@@ -11,6 +11,7 @@ import VideoConnectionDialog from './components/VideoConnectionDialog'
 import Chat from './components/Chat'
 import HelperButtonGroup from './components/HelperButtonGroup'
 import MobileVirtualJoystick from './components/MobileVirtualJoystick'
+import DisconnectedDialog from './components/DisconnectedDialog'
 
 const Backdrop = styled.div`
   position: absolute;
@@ -24,6 +25,7 @@ function App() {
   const whiteboardDialogOpen = useAppSelector((state) => state.whiteboard.whiteboardDialogOpen)
   const videoConnected = useAppSelector((state) => state.user.videoConnected)
   const roomJoined = useAppSelector((state) => state.room.roomJoined)
+  const disconnected = useAppSelector((state) => state.room.disconnected)
 
   let ui: JSX.Element
   if (loggedIn) {
@@ -57,6 +59,8 @@ function App() {
       {ui}
       {/* Render HelperButtonGroup if no dialogs are opened. */}
       {!computerDialogOpen && !whiteboardDialogOpen && <HelperButtonGroup />}
+      {/* Render on top of everything: nothing works once the connection is gone. */}
+      {disconnected && <DisconnectedDialog />}
     </Backdrop>
   )
 }

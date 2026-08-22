@@ -7,7 +7,7 @@ import WebRTC from '../web/WebRTC'
 import { phaserEvents, Event } from '../events/EventCenter'
 import store from '../stores'
 import { setSessionId, setPlayerNameMap, removePlayerNameMap } from '../stores/UserStore'
-import { setServerConnected, setJoinedRoomData } from '../stores/RoomStore'
+import { setServerConnected, setJoinedRoomData, setDisconnected } from '../stores/RoomStore'
 import {
   pushChatMessage,
   pushPlayerJoinedMessage,
@@ -121,6 +121,22 @@ export default class Network {
     this.room.state.chatMessages.onAdd = (item, index) => {
       store.dispatch(pushChatMessage(item))
     }
+
+    /**
+     * Nothing else notices when the connection drops - the map keeps rendering and
+     * the character still walks around locally, so members cannot tell that chat and
+     * everyone else have stopped working. Render's free instance sleeping is the
+     * common cause, but a flaky network or a deploy does the same thing.
+     */
+    this.room.onLeave((code) => {
+      console.warn('left the igloo room, code:', code)
+      store.dispatch(setDisconnected(true))
+    })
+
+    this.room.onError((code, message) => {
+      console.error('igloo room error', code, message)
+      store.dispatch(setDisconnected(true))
+    })
 
     // when the server sends room data
     this.room.onMessage(Message.SEND_ROOM_DATA, (content) => {
