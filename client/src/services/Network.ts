@@ -142,6 +142,16 @@ export default class Network {
       const computerState = store.getState().computer
       computerState.shareScreenManager?.onUserLeft(clientId)
     })
+
+    // when someone else fires a wake-up arrow
+    this.room.onMessage(Message.SHOOT_ARROW, ({ clientId, x, y, direction }) => {
+      phaserEvents.emit(Event.ARROW_SHOT, clientId, x, y, direction)
+    })
+
+    // when someone else's arrow hit me - the server only sends this to the target
+    this.room.onMessage(Message.ARROW_HIT, ({ clientId }) => {
+      phaserEvents.emit(Event.ARROW_HIT_ME, clientId)
+    })
   }
 
   // method to register event listener and call back function when a item user added
@@ -201,6 +211,29 @@ export default class Network {
       anim: currentAnim,
       running,
     })
+  }
+
+  // method to tell everyone else a wake-up arrow was fired
+  shootArrow(x: number, y: number, direction: string) {
+    this.room?.send(Message.SHOOT_ARROW, { x, y, direction })
+  }
+
+  // method to tell the server whose player the arrow hit, so only they hear it
+  reportArrowHit(targetId: string) {
+    this.room?.send(Message.ARROW_HIT, { targetId })
+  }
+
+  // method to register event listener and call back function when someone fires an arrow
+  onArrowShot(
+    callback: (clientId: string, x: number, y: number, direction: string) => void,
+    context?: any
+  ) {
+    phaserEvents.on(Event.ARROW_SHOT, callback, context)
+  }
+
+  // method to register event listener and call back function when an arrow hit me
+  onArrowHitMe(callback: (clientId: string) => void, context?: any) {
+    phaserEvents.on(Event.ARROW_HIT_ME, callback, context)
   }
 
   // method to send player name to Colyseus server

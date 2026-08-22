@@ -8,6 +8,14 @@ import Chair from '../items/Chair'
 import Computer from '../items/Computer'
 import Whiteboard from '../items/Whiteboard'
 import VendingMachine from '../items/VendingMachine'
+import Arrow, {
+  ARROW_HIT_RADIUS,
+  ARROW_TEXTURE,
+  arrowSpawnPoint,
+  createArrowTexture,
+  Direction,
+} from '../items/Arrow'
+import { playPokeEffect, playPokeSound } from '../utils/poke'
 import '../characters/MyPlayer'
 import '../characters/OtherPlayer'
 import MyPlayer from '../characters/MyPlayer'
@@ -22,12 +30,21 @@ import store from '../stores'
 import { setFocused, setShowChat } from '../stores/ChatStore'
 import { NavKeys, Keyboard } from '../../../types/KeyboardState'
 
+/** keeps someone from spraying arrows by holding Z down */
+const ARROW_COOLDOWN = 400
+
 export default class Game extends Phaser.Scene {
   network!: Network
   private cursors!: NavKeys
   private keyE!: Phaser.Input.Keyboard.Key
   private keyR!: Phaser.Input.Keyboard.Key
+  private keyZ!: Phaser.Input.Keyboard.Key
   private map!: Phaser.Tilemaps.Tilemap
+  /** arrows I fired - only these are checked against other players */
+  private myArrows!: Phaser.Physics.Arcade.Group
+  /** arrows other people fired - drawn only, their shooter decides the hit */
+  private otherArrows!: Phaser.Physics.Arcade.Group
+  private lastArrowShotAt = 0
   myPlayer!: MyPlayer
   private playerSelector!: Phaser.GameObjects.Zone
   private otherPlayers!: Phaser.Physics.Arcade.Group
@@ -48,6 +65,7 @@ export default class Game extends Phaser.Scene {
     // maybe we can have a dedicated method for adding keys if more keys are needed in the future
     this.keyE = this.input.keyboard.addKey('E')
     this.keyR = this.input.keyboard.addKey('R')
+    this.keyZ = this.input.keyboard.addKey('Z')
     this.input.keyboard.disableGlobalCapture()
     this.input.keyboard.on('keydown-ENTER', (event) => {
       store.dispatch(setShowChat(true))
@@ -138,6 +156,26 @@ export default class Game extends Phaser.Scene {
 
     this.otherPlayers = this.physics.add.group({ classType: OtherPlayer })
 
+    createArrowTexture(this)
+    this.myArrows = this.physics.add.group({ classType: Arrow, runChildUpdate: true })
+    this.otherArrows = this.physics.add.group({ classType: Arrow, runChildUpdate: true })
+    // arrows should not travel through walls into the next room
+    this.physics.add.collider(this.myArrows, groundLayer, this.handleArrowHitWall, undefined, this)
+    this.physics.add.collider(
+      this.otherArrows,
+      groundLayer,
+      this.handleArrowHitWall,
+      undefined,
+      this
+    )
+    this.physics.add.overlap(
+      this.myArrows,
+      this.otherPlayers,
+      this.handleArrowHitPlayer,
+      undefined,
+      this
+    )
+
     this.cameras.main.zoom = 1.5
     this.cameras.main.startFollow(this.myPlayer, true)
 
@@ -169,6 +207,65 @@ export default class Game extends Phaser.Scene {
     this.network.onItemUserAdded(this.handleItemUserAdded, this)
     this.network.onItemUserRemoved(this.handleItemUserRemoved, this)
     this.network.onChatMessageAdded(this.handleChatMessageAdded, this)
+    this.network.onArrowShot(this.handleArrowShot, this)
+    this.network.onArrowHitMe(this.handleArrowHitMe, this)
+  }
+
+  /** fire a wake-up arrow in the direction my player is facing */
+  private shootArrow() {
+    const now = this.time.now
+    if (now - this.lastArrowShotAt < ARROW_COOLDOWN) return
+    this.lastArrowShotAt = now
+
+    const direction = this.myPlayer.facingDirection
+    const { x, y } = arrowSpawnPoint(this.myPlayer.x, this.myPlayer.y, direction)
+    this.spawnArrow(this.myArrows, this.network.mySessionId, x, y, direction)
+    this.network.shootArrow(x, y, direction)
+  }
+
+  private spawnArrow(
+    group: Phaser.Physics.Arcade.Group,
+    ownerId: string,
+    x: number,
+    y: number,
+    direction: Direction
+  ) {
+    const arrow = group.get(x, y, ARROW_TEXTURE) as Arrow
+    if (!arrow) return
+    arrow.setActive(true).setVisible(true)
+    arrow.enableBody(true, x, y, true, true)
+    arrow.fire(ownerId, direction)
+  }
+
+  // someone else fired - render it, but let their client decide what it hits
+  private handleArrowShot(clientId: string, x: number, y: number, direction: string) {
+    this.spawnArrow(this.otherArrows, clientId, x, y, direction as Direction)
+  }
+
+  private handleArrowHitWall(arrow) {
+    ;(arrow as Arrow).destroy()
+  }
+
+  private handleArrowHitPlayer(arrowObject, otherPlayerObject) {
+    const arrow = arrowObject as Arrow
+    const otherPlayer = otherPlayerObject as OtherPlayer
+    if (!arrow.active) return
+    // other players carry an oversized body so webrtc calls connect on approach,
+    // which would count as a hit from way across the room. measure for real.
+    const distance = Phaser.Math.Distance.Between(arrow.x, arrow.y, otherPlayer.x, otherPlayer.y)
+    if (distance > ARROW_HIT_RADIUS) return
+
+    arrow.destroy()
+    playPokeEffect(this, otherPlayer.x, otherPlayer.y)
+    playPokeSound()
+    this.network.reportArrowHit(otherPlayer.playerId)
+  }
+
+  // the server only sends this to whoever was hit
+  private handleArrowHitMe(clientId: string) {
+    playPokeEffect(this, this.myPlayer.x, this.myPlayer.y)
+    playPokeSound()
+    this.cameras.main.shake(250, 0.006)
   }
 
   private handleItemSelectorOverlap(playerSelector, selectionItem) {
@@ -285,6 +382,9 @@ export default class Game extends Phaser.Scene {
     if (this.myPlayer && this.network) {
       this.playerSelector.update(this.myPlayer, this.cursors)
       this.myPlayer.update(this.playerSelector, this.cursors, this.keyE, this.keyR, this.network)
+      // keys are only registered once the player presses Join, so update() runs
+      // for a while before keyZ exists
+      if (this.keyZ && Phaser.Input.Keyboard.JustDown(this.keyZ)) this.shootArrow()
     }
   }
 }

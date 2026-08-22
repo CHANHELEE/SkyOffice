@@ -11,4 +11,6 @@ export enum Message {
   VIDEO_CONNECTED,
   ADD_CHAT_MESSAGE,
   SEND_ROOM_DATA,
+  SHOOT_ARROW,
+  ARROW_HIT,
 }

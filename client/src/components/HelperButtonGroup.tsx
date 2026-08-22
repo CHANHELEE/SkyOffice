@@ -169,6 +169,9 @@ export default function HelperButtonGroup() {
                 <strong>R</strong> to use computer to screen share (when facing a computer)
               </li>
               <li>
+                <strong>Z</strong> to shoot a wake-up arrow at whoever you are facing
+              </li>
+              <li>
                 <strong>Enter</strong> to open chat
               </li>
               <li>

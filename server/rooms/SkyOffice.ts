@@ -139,6 +139,34 @@ export class SkyOffice extends Room<OfficeState> {
       })
     })
 
+    // when a player shoots a wake-up arrow, let everyone else render it.
+    // arrows are cosmetic, so they are broadcast rather than kept in room state.
+    this.onMessage(
+      Message.SHOOT_ARROW,
+      (client, message: { x: number; y: number; direction: string }) => {
+        this.broadcast(
+          Message.SHOOT_ARROW,
+          {
+            clientId: client.sessionId,
+            x: message.x,
+            y: message.y,
+            direction: message.direction,
+          },
+          { except: client }
+        )
+      }
+    )
+
+    // the shooter detects the hit and reports it. only the player who was hit is
+    // told, so the sound stays between the two of them.
+    this.onMessage(Message.ARROW_HIT, (client, message: { targetId: string }) => {
+      this.clients.forEach((cli) => {
+        if (cli.sessionId === message.targetId) {
+          cli.send(Message.ARROW_HIT, { clientId: client.sessionId })
+        }
+      })
+    })
+
     // when a player send a chat message, update the message array and broadcast to all connected clients except the sender
     this.onMessage(Message.ADD_CHAT_MESSAGE, (client, message: { content: string }) => {
       // update the message array (so that players join later can also see the message)
