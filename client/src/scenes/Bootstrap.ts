@@ -37,19 +37,19 @@ export default class Bootstrap extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     })
-    this.load.spritesheet('chairs', 'assets/items/chair.png', {
+    this.load.spritesheet('chairs', 'assets/items/chair_polar.png', {
       frameWidth: 32,
       frameHeight: 64,
     })
-    this.load.spritesheet('computers', 'assets/items/computer.png', {
+    this.load.spritesheet('computers', 'assets/items/computer_polar.png', {
       frameWidth: 96,
       frameHeight: 64,
     })
-    this.load.spritesheet('whiteboards', 'assets/items/whiteboard.png', {
+    this.load.spritesheet('whiteboards', 'assets/items/whiteboard_polar.png', {
       frameWidth: 64,
       frameHeight: 64,
     })
-    this.load.spritesheet('vendingmachines', 'assets/items/vendingmachine.png', {
+    this.load.spritesheet('vendingmachines', 'assets/items/vendingmachine_polar.png', {
       frameWidth: 48,
       frameHeight: 72,
     })
