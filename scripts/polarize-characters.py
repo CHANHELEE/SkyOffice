@@ -1,5 +1,5 @@
 """
-Dress the SkyOffice characters for the Antarctic.
+Dress the SkyOffice characters for the Arctic.
 
 Two passes over each sheet:
 
@@ -27,6 +27,7 @@ FRAME_W, FRAME_H = 32, 48
 # shared across every sheet
 SKIN = ['#ffcbb0', '#f6ae9f', '#ffb893', '#f69784', '#e19b9b', '#d3a38d', '#f2b899']
 OUTLINE = {(0x3a, 0x3a, 0x50), (0x46, 0x46, 0x5e)}
+NEIGHBOURS_8 = [(dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if (dx, dy) != (0, 0)]
 
 
 def lum(c):
@@ -58,15 +59,17 @@ OUTFITS = {
     # White expedition gear, the way people actually dress for the pole. The
     # scarf carries the colour, because at 32px a white hood on a white parka is
     # the only thing four people could not be told apart by.
+    # 이누이트 남성: 카리부 가죽 파카. 굵은 퍼 러프로 얼굴을 감싼다
     'adam': {
         'parts': [
             # hood
-            (['#bba386', '#959d58', '#687253', '#5f694a', '#5d6043'], '#ffffff', '#b8c6d6'),
-            # parka body, kept a shade warmer than the hood so the two separate
-            (['#9f74a8', '#805e8e'], '#e9e2d4', '#a89e8d'),
+            (['#bba386', '#959d58', '#687253', '#5f694a', '#5d6043'], '#c9b08c', '#6f5a42'),
+            # parka body, kept a shade darker than the hood so the two separate
+            (['#9f74a8', '#805e8e'], '#8a5836', '#48291a'),
         ],
-        'scarf': ('#ff7a6b', '#bd3a2c'),
-        'fur': '#ff9d8f',
+        'fur': '#fdf6e8',
+        # the ruff on a real parka stands proud of the face, so it gets two rings
+        'fur_rings': 2,
     },
     'ash': {
         'parts': [
@@ -76,13 +79,16 @@ OUTFITS = {
         'scarf': ('#63b4ee', '#255f92'),
         'fur': '#8ecdf5',
     },
+    # 이누이트 여성: 아마우티. 남성과 갈라놓는 건 땋은 머리와 붉은 장식띠다
     'lucy': {
         'parts': [
-            (['#cc9659', '#c2884b', '#b37b3f', '#af723b', '#ab6736', '#774934'], '#fffdf7', '#c9c0ae'),
-            (['#d0be9c', '#bfa690'], '#e6e1d4', '#aaa392'),
+            (['#cc9659', '#c2884b', '#b37b3f', '#af723b', '#ab6736', '#774934'], '#f2e0c6', '#a98a68'),
+            (['#d0be9c', '#bfa690'], '#c98a5c', '#7d5236'),
         ],
-        'scarf': ('#5fd9b8', '#1f8a72'),
-        'fur': '#86e6c9',
+        'fur': '#fffaf0',
+        'fur_rings': 2,
+        'braids': ('#4a3226', '#241812'),
+        'band': ('#e8785f', '#b83c38'),
     },
     # 뽀로로풍 펭귄: 파란 조종모, 고글, 주황 부리
     'nancy': {
@@ -153,16 +159,51 @@ def paint_frame(px, ox, oy, w, h, spec, face):
     fur = spec.get('fur')
     if fur:
         trim = rgb(fur)
-        face_set = set(face)
         hood = spec['_hood']
-        for x, y in list(face_set):
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                nx, ny = x + dx, y + dy
-                if not (0 <= nx < w and 0 <= ny < h) or (nx, ny) in face_set:
+        # a ruff can be more than one pixel thick - grow the ring outward, and
+        # each ring only ever eats hood pixels so the silhouette is untouched
+        inner = set(face)
+        for _ in range(spec.get('fur_rings', 1)):
+            ring = set()
+            for x, y in inner:
+                for dx, dy in NEIGHBOURS_8:
+                    nx, ny = x + dx, y + dy
+                    if not (0 <= nx < w and 0 <= ny < h) or (nx, ny) in inner:
+                        continue
+                    r, g, b, a = px[ox + nx, oy + ny]
+                    if a and (r, g, b) in hood:
+                        px[ox + nx, oy + ny] = (*trim, 255)
+                        ring.add((nx, ny))
+            if not ring:
+                break
+            inner |= ring
+
+    # two braids falling out of the hood onto the shoulders. At this size they
+    # are the clearest thing separating her from him, so they hang below the
+    # ruff where nothing else competes for the pixels.
+    braids = spec.get('braids')
+    if braids and height >= 6:
+        light, dark = rgb(braids[0]), rgb(braids[1])
+        left, right = min(xs), max(xs)
+        for row, y in enumerate(range(bottom, min(bottom + 4, h))):
+            for x in (left - 1, right + 1):
+                if not (0 <= x < w):
                     continue
-                r, g, b, a = px[ox + nx, oy + ny]
-                if a and (r, g, b) in hood:
-                    px[ox + nx, oy + ny] = (*trim, 255)
+                r, g, b, a = px[ox + x, oy + y]
+                if not a or (r, g, b) in OUTLINE:
+                    continue
+                px[ox + x, oy + y] = (*(light if row == 0 else dark), 255)
+
+    # beaded trim across the chest of the amauti
+    band = spec.get('band')
+    if band:
+        light, dark = rgb(band[0]), rgb(band[1])
+        y = min(bottom + 3, h - 1)
+        for x in range(w):
+            r, g, b, a = px[ox + x, oy + y]
+            if not a or (r, g, b) in OUTLINE:
+                continue
+            px[ox + x, oy + y] = (*(light if x % 2 else dark), 255)
 
     # the scarf goes round the neck: the first rows of body under the chin
     scarf = spec.get('scarf')
