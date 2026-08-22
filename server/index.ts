@@ -1,3 +1,5 @@
+import path from 'path'
+import dotenv from 'dotenv'
 import http from 'http'
 import express from 'express'
 import cors from 'cors'
@@ -8,6 +10,14 @@ import { RoomType } from '../types/Rooms'
 // import socialRoutes from "@colyseus/social/express"
 
 import { SkyOffice } from './rooms/SkyOffice'
+
+/**
+ * load .env before anything below reads process.env.
+ * the path is anchored to this file rather than cwd, because `yarn start`
+ * runs from server/ while the Procfile runs from the repo root. a real
+ * deployment has no .env, and dotenv then leaves the real env vars alone.
+ */
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const port = Number(process.env.PORT || 2567)
 const iglooRoomPassword = process.env.IGLOO_ROOM_PASSWORD
