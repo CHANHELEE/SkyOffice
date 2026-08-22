@@ -156,6 +156,13 @@ export default class Game extends Phaser.Scene {
 
     this.otherPlayers = this.physics.add.group({ classType: OtherPlayer })
 
+    // The office tileset is the upstream art - there is no antarctic tileset in
+    // the repo and pixel art is not something we can author here. Bright sky
+    // around the map plus snow falling through it is what carries the theme into
+    // the room, without dulling the pixel art underneath.
+    this.cameras.main.setBackgroundColor('#bfe4f7')
+    this.letItSnowIndoors()
+
     createArrowTexture(this)
     this.myArrows = this.physics.add.group({ classType: Arrow, runChildUpdate: true })
     this.otherArrows = this.physics.add.group({ classType: Arrow, runChildUpdate: true })
@@ -269,6 +276,42 @@ export default class Game extends Phaser.Scene {
     playPokeEffect(this, this.myPlayer.x, this.myPlayer.y)
     playPokeSound()
     this.cameras.main.shake(250, 0.006)
+  }
+
+  /**
+   * Snow drifting across the room. Fixed to the camera rather than the world so
+   * it reads as weather in front of you, not as objects lying on the floor.
+   */
+  private letItSnowIndoors() {
+    const { width, height } = this.cameras.main
+
+    for (let i = 0; i < 60; i++) {
+      const size = Phaser.Math.RND.between(1, 3)
+      const flake = this.add
+        .rectangle(
+          Phaser.Math.RND.between(0, width),
+          Phaser.Math.RND.between(0, height),
+          size,
+          size,
+          0xffffff,
+          Phaser.Math.RND.realInRange(0.12, 0.42)
+        )
+        .setScrollFactor(0)
+        .setDepth(9000)
+
+      this.tweens.add({
+        targets: flake,
+        y: height + 10,
+        x: `+=${Phaser.Math.RND.between(-30, 70)}`,
+        duration: Phaser.Math.RND.between(7000, 16000) / size,
+        delay: Phaser.Math.RND.between(0, 7000),
+        repeat: -1,
+        onRepeat: () => {
+          flake.y = -10
+          flake.x = Phaser.Math.RND.between(-30, width)
+        },
+      })
+    }
   }
 
   private handleItemSelectorOverlap(playerSelector, selectionItem) {

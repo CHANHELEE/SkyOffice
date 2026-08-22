@@ -5,9 +5,13 @@ import { BackgroundMode } from '../../../types/BackgroundMode'
 import phaserGame from '../PhaserGame'
 import Bootstrap from '../scenes/Bootstrap'
 
+/**
+ * Always open on the polar day. The igloo theme is built around glare off the
+ * snow, and starting members in the dark just because they logged on after six
+ * put them in a different-looking product. Night is still one click away.
+ */
 export function getInitialBackgroundMode() {
-  const currentHour = new Date().getHours()
-  return currentHour > 6 && currentHour <= 18 ? BackgroundMode.DAY : BackgroundMode.NIGHT
+  return BackgroundMode.DAY
 }
 
 export const userSlice = createSlice({

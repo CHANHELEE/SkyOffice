@@ -1,74 +1,149 @@
 import React, { useState } from 'react'
-import logo from '../images/logo.png'
-import styled from 'styled-components'
+import styled, { keyframes } from 'styled-components'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
-import LinearProgress from '@mui/material/LinearProgress'
 import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
 
 import { useAppSelector } from '../hooks'
+import { frostField } from '../styles/polar'
 
 import phaserGame from '../PhaserGame'
 import Bootstrap from '../scenes/Bootstrap'
+import Igloo from './Igloo'
+
+const breathe = keyframes`
+  0%, 100% { opacity: 0.72; }
+  43% { opacity: 1; }
+  67% { opacity: 0.86; }
+`
+
+/* the entrance animation has to carry the centring transform, or it lands on
+   `transform: none` and knocks the igloo off the middle of the screen */
+const riseIntoView = keyframes`
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 20px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+`
 
 const Backdrop = styled.div`
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  gap: 60px;
-  align-items: center;
-`
-
-const Wrapper = styled.div`
-  background: #222639;
-  border-radius: 16px;
-  padding: 36px 60px;
-  box-shadow: 0px 0px 5px #0000006f;
-`
-
-const Title = styled.h1`
-  font-size: 24px;
-  color: #eee;
-  text-align: center;
-`
-
-const Subtitle = styled.p`
-  margin: 0;
-  font-size: 14px;
-  color: #c2c2c2;
-  text-align: center;
-`
-
-const Content = styled.form`
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin: 20px 0;
   align-items: center;
-  justify-content: center;
-
-  img {
-    border-radius: 8px;
-    height: 120px;
-  }
+  animation: ${riseIntoView} 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 `
 
-const ProgressBarWrapper = styled.div`
+/**
+ * The igloo is the picture and the card is the door - putting the form on the
+ * dome itself meant text over block seams and a button stuck to the snow like
+ * a sticker.
+ */
+const Drawing = styled.div`
+  width: 330px;
+  margin-bottom: -18px;
+  filter: drop-shadow(0 14px 22px #0f3a5c1f);
+`
+
+const Card = styled.div`
+  position: relative;
+  width: 320px;
+  padding: 26px 30px 28px;
+  border-radius: 22px;
+  background: var(--panel-bg);
+  border: 1px solid var(--ice-edge);
+  box-shadow: var(--panel-shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
+`
 
-  h3 {
-    color: #33ac96;
+const Mark = styled.div`
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--glacier);
+  opacity: 0.8;
+  margin-bottom: 2px;
+`
+
+const Title = styled.h1`
+  margin: 0 0 4px;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: 0.01em;
+  color: var(--deep-ice);
+  text-align: center;
+  text-shadow: 0 2px 0 #fff;
+`
+
+const Subtitle = styled.p`
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--deep-ice-dim);
+  text-align: center;
+`
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+  width: 100%;
+`
+
+const PasswordField = styled(TextField)`
+  ${frostField};
+  width: 100%;
+`
+
+const EnterButton = styled(Button)`
+  && {
+    font-family: var(--display);
+    font-size: 16px;
+    letter-spacing: 0.03em;
+    color: #ffffff;
+    background: linear-gradient(180deg, #58b6e0, #2b8fc4);
+    border-radius: 14px;
+    padding: 10px 0;
+    box-shadow: 0 8px 18px #2b8fc44d, inset 0 1px 0 #ffffff59;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+
+    &:hover {
+      background: linear-gradient(180deg, #6ac2e8, #2f9bd2);
+      box-shadow: 0 12px 24px #2b8fc466, inset 0 1px 0 #ffffff73;
+      transform: translateY(-1px);
+    }
   }
 `
 
-const ProgressBar = styled(LinearProgress)`
-  width: 360px;
+const Status = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--deep-ice-faint);
+`
+
+/** three dots melting in and out while we reach the server */
+const Pulse = styled.span`
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--glacier);
+  box-shadow: 0 0 10px #2b8fc47a;
+  animation: ${breathe} 1.6s ease-in-out infinite;
 `
 
 export default function RoomSelectionDialog() {
@@ -93,7 +168,7 @@ export default function RoomSelectionDialog() {
     setPasswordFieldEmpty(false)
 
     if (!serverConnected) {
-      showError('Trying to connect to server, please try again!')
+      showError('서버에 연결하는 중입니다. 잠시 후 다시 시도해 주세요.')
       return
     }
 
@@ -104,7 +179,9 @@ export default function RoomSelectionDialog() {
       .catch((error) => {
         console.error(error)
         showError(
-          error?.code === 403 ? 'Password is incorrect!' : 'Could not enter igloo, please try again!'
+          error?.code === 403
+            ? '비밀번호가 올바르지 않습니다.'
+            : '입장하지 못했습니다. 잠시 후 다시 시도해 주세요.'
         )
       })
   }
@@ -115,51 +192,64 @@ export default function RoomSelectionDialog() {
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         open={showSnackbar}
         autoHideDuration={3000}
-        onClose={() => {
-          setShowSnackbar(false)
-        }}
+        onClose={() => setShowSnackbar(false)}
       >
         <Alert
           severity="error"
           variant="outlined"
-          // overwrites the dark theme on render
-          style={{ background: '#fdeded', color: '#7d4747' }}
+          style={{
+            background: '#fff1f1f2',
+            color: '#a3323b',
+            borderColor: '#e0808a',
+            fontFamily: 'var(--body)',
+            backdropFilter: 'blur(10px)',
+          }}
         >
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
       <Backdrop>
-        <Wrapper>
-          <Title>Welcome to igloo</Title>
-          <Content onSubmit={handleSubmit}>
-            <img src={logo} alt="logo" />
-            <Subtitle>이글루 멤버 전용 공간입니다.</Subtitle>
-            <TextField
+        <Drawing>
+          <Igloo />
+        </Drawing>
+
+        <Card>
+          <Mark>ANTARCTICA</Mark>
+          <Title>이글루</Title>
+          <Subtitle>
+            남극 어딘가, 멤버들만 아는 자리.
+            <br />
+            비밀번호를 넣고 안으로 들어오세요.
+          </Subtitle>
+          <Form onSubmit={handleSubmit}>
+            <PasswordField
               autoFocus
               fullWidth
+              size="small"
               type="password"
-              label="Password"
+              label="비밀번호"
               variant="outlined"
-              color="secondary"
               autoComplete="off"
               error={passwordFieldEmpty}
-              helperText={passwordFieldEmpty && 'Password is required'}
+              helperText={passwordFieldEmpty && '비밀번호를 입력해 주세요'}
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value)
                 setPasswordFieldEmpty(false)
               }}
             />
-            <Button variant="contained" color="secondary" type="submit">
-              Enter igloo
-            </Button>
-          </Content>
-        </Wrapper>
+            <EnterButton variant="contained" type="submit">
+              들어가기
+            </EnterButton>
+          </Form>
+        </Card>
+
         {!serverConnected && (
-          <ProgressBarWrapper>
-            <h3> Connecting to server...</h3>
-            <ProgressBar color="secondary" />
-          </ProgressBarWrapper>
+          <Status>
+            <Pulse />
+            서버를 깨우는 중입니다. 처음 접속이면 1분 가까이 걸릴 수 있어요.
+          </Status>
         )}
       </Backdrop>
     </>

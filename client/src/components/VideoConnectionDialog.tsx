@@ -7,6 +7,7 @@ import AlertTitle from '@mui/material/AlertTitle'
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
 import { openURL } from '../utils/helpers'
+import { glacierButton } from '../styles/polar'
 
 /** the igloo web service members go back to for attendance and submissions */
 const IGLOO_WEB_URL = 'https://igloo-five.vercel.app/'
@@ -26,6 +27,15 @@ const Wrapper = styled.div`
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+`
+
+const FrostButton = styled(Button)`
+  ${glacierButton};
 `
 
 export default function VideoConnectionDialog() {
@@ -40,24 +50,23 @@ export default function VideoConnectionDialog() {
               setConnectionWarning(!connectionWarning)
             }}
           >
-            <AlertTitle>Warning</AlertTitle>
-            No webcam connected
-            <br /> <strong>connect one for full experience!</strong>
+            <AlertTitle>알림</AlertTitle>
+            웹캠이 연결되지 않았습니다
+            <br /> <strong>연결하면 더 편합니다</strong>
           </Alert>
         )}
-        <Button
+        <FrostButton
           variant="contained"
-          color="secondary"
           onClick={() => {
             const game = phaserGame.scene.keys.game as Game
             game.network.webRTC?.getUserMedia()
           }}
         >
-          Connect Webcam
-        </Button>
-        <Button variant="contained" color="secondary" onClick={() => openURL(IGLOO_WEB_URL)}>
+          웹캠 연결
+        </FrostButton>
+        <FrostButton variant="contained" onClick={() => openURL(IGLOO_WEB_URL)}>
           이글루 웹사이트
-        </Button>
+        </FrostButton>
       </Wrapper>
     </Backdrop>
   )

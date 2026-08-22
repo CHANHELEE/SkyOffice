@@ -43,13 +43,19 @@ const FabWrapper = styled.div`
 const ChatHeader = styled.div`
   position: relative;
   height: 35px;
-  background: #000000a7;
-  border-radius: 10px 10px 0px 0px;
+  background: #ffffffd9;
+  border: 1px solid #2b8fc433;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  backdrop-filter: blur(6px);
 
   h3 {
-    color: #fff;
+    font-family: var(--display);
+    font-weight: 400;
+    color: var(--deep-ice);
     margin: 7px;
-    font-size: 17px;
+    font-size: 16px;
+    letter-spacing: 0.04em;
     text-align: center;
   }
 
@@ -64,8 +70,11 @@ const ChatBox = styled(Box)`
   height: 100%;
   width: 100%;
   overflow: auto;
-  background: #2c2c2c;
-  border: 1px solid #00000029;
+  background: #ffffffb8;
+  border: 1px solid #2b8fc433;
+  border-top: none;
+  border-bottom: none;
+  backdrop-filter: blur(6px);
 `
 
 const MessageWrapper = styled.div`
@@ -83,33 +92,42 @@ const MessageWrapper = styled.div`
   }
 
   span {
-    color: white;
+    color: var(--deep-ice);
     font-weight: normal;
   }
 
   .notification {
-    color: grey;
+    color: var(--deep-ice-faint);
     font-weight: normal;
+    font-style: italic;
   }
 
   :hover {
-    background: #3a3a3a;
+    background: #2b8fc414;
   }
 `
 
 const InputWrapper = styled.form`
-  box-shadow: 10px 10px 10px #00000018;
-  border: 1px solid #42eacb;
-  border-radius: 0px 0px 10px 10px;
+  box-shadow: 0 8px 20px #0f3a5c1f;
+  border: 1px solid #2b8fc44d;
+  border-radius: 0 0 12px 12px;
   display: flex;
   flex-direction: row;
-  background: linear-gradient(180deg, #000000c1, #242424c0);
+  background: #ffffffe0;
+  backdrop-filter: blur(6px);
 `
 
 const InputTextField = styled(InputBase)`
-  border-radius: 0px 0px 10px 10px;
+  border-radius: 0 0 12px 12px;
   input {
-    padding: 5px;
+    padding: 6px;
+    font-family: var(--body);
+    color: var(--deep-ice);
+
+    &::placeholder {
+      color: var(--deep-ice-faint);
+      opacity: 1;
+    }
   }
 `
 
@@ -226,7 +244,7 @@ export default function Chat() {
         {showChat ? (
           <>
             <ChatHeader>
-              <h3>Chat</h3>
+              <h3>모닥불</h3>
               <IconButton
                 aria-label="close dialog"
                 className="close"
@@ -262,7 +280,7 @@ export default function Chat() {
                 inputRef={inputRef}
                 autoFocus={focused}
                 fullWidth
-                placeholder="Press Enter to chat"
+                placeholder="Enter를 눌러 이야기하기"
                 value={inputValue}
                 onKeyDown={handleKeyDown}
                 onChange={handleChange}

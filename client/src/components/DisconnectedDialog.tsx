@@ -12,15 +12,16 @@ const Backdrop = styled.div`
   width: 100%;
   height: 100%;
   z-index: 20000;
-  background: #0e0f1acc;
+  background: #0f3a5c73;
   display: flex;
   align-items: center;
   justify-content: center;
 `
 
 const Wrapper = styled.div`
-  background: #222639;
-  border-radius: 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--ice-edge);
+  border-radius: 20px;
   padding: 32px 40px;
   margin: 0 16px;
   max-width: 420px;
@@ -33,8 +34,10 @@ const Wrapper = styled.div`
 
 const Title = styled.h2`
   margin: 0;
-  font-size: 20px;
-  color: #eee;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 21px;
+  color: var(--deep-ice);
   text-align: center;
 `
 
@@ -42,13 +45,13 @@ const Description = styled.p`
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  color: #c2c2c2;
+  color: var(--deep-ice-dim);
   text-align: center;
 `
 
 const Link = styled.a`
   font-size: 13px;
-  color: #33ac96;
+  color: var(--glacier);
   overflow-wrap: anywhere;
 `
 

@@ -38,10 +38,12 @@ const Backdrop = styled.div`
 
 const Wrapper = styled.div`
   position: relative;
-  font-size: 16px;
-  color: #eee;
-  background: #222639;
-  box-shadow: 0px 0px 5px #0000006f;
+  font-size: 14px;
+  color: var(--deep-ice);
+  background: #ffffffe6;
+  border: 1px solid #2b8fc433;
+  box-shadow: 0 12px 30px #0f3a5c26;
+  backdrop-filter: blur(6px);
   border-radius: 16px;
   padding: 15px 35px 15px 15px;
   display: flex;
@@ -65,8 +67,10 @@ const ButtonGroup = styled.div`
 `
 
 const Title = styled.h3`
-  font-size: 24px;
-  color: #eee;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--deep-ice);
   text-align: center;
 `
 
@@ -82,8 +86,10 @@ const RoomName = styled.div`
   align-items: center;
 
   h3 {
-    font-size: 24px;
-    color: #eee;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 22px;
+    color: var(--deep-ice);
   }
 `
 
@@ -93,15 +99,25 @@ const RoomDescription = styled.div`
   max-height: 150px;
   overflow-wrap: anywhere;
   overflow-y: auto;
-  font-size: 16px;
-  color: #c2c2c2;
+  font-size: 13px;
+  color: var(--deep-ice-dim);
   display: flex;
   justify-content: center;
 `
 
 const StyledFab = styled(Fab)<{ target?: string }>`
-  &:hover {
-    color: #1ea2df;
+  && {
+    background: var(--surface-raised);
+    color: var(--glacier);
+    border: 1px solid var(--ice-edge);
+    box-shadow: 0 6px 18px #0f3a5c26;
+    transition: color 0.2s, border-color 0.2s, transform 0.2s;
+
+    &:hover {
+      color: var(--aurora-mint);
+      border-color: var(--ice-edge-strong);
+      transform: translateY(-2px);
+    }
   }
 `
 
@@ -120,7 +136,7 @@ export default function HelperButtonGroup() {
     <Backdrop>
       <div className="wrapper-group">
         {roomJoined && (
-          <Tooltip title={showJoystick ? 'Disable virtual joystick' : 'Enable virtual joystick'}>
+          <Tooltip title={showJoystick ? '가상 조이스틱 끄기' : '가상 조이스틱 켜기'}>
             <StyledFab size="small" onClick={() => dispatch(setShowJoystick(!showJoystick))}>
               {showJoystick ? <VideogameAssetOffIcon /> : <VideogameAssetIcon />}
             </StyledFab>
@@ -138,49 +154,49 @@ export default function HelperButtonGroup() {
               <h3>{roomName}</h3>
             </RoomName>
             <RoomDescription>
-              <ArrowRightIcon /> ID: {roomId}
+              <ArrowRightIcon /> 방 ID: {roomId}
             </RoomDescription>
             <RoomDescription>
-              <ArrowRightIcon /> Description: {roomDescription}
+              <ArrowRightIcon /> 설명: {roomDescription}
             </RoomDescription>
             <p className="tip">
               <LightbulbIcon />
-              Shareable link coming up 😄
+              공유 링크는 준비 중입니다 ❄️
             </p>
           </Wrapper>
         )}
         {showControlGuide && (
           <Wrapper>
-            <Title>Controls</Title>
+            <Title>조작법</Title>
             <IconButton className="close" onClick={() => setShowControlGuide(false)} size="small">
               <CloseIcon />
             </IconButton>
             <ul>
               <li>
-                <strong>W, A, S, D or arrow keys</strong> to move
+                <strong>W A S D</strong> 또는 <strong>방향키</strong> 로 이동
               </li>
               <li>
-                <strong>Space + move keys</strong> to run
+                <strong>Space + 방향키</strong> 로 달리기
               </li>
               <li>
-                <strong>E</strong> to sit down (when facing a chair)
+                <strong>E</strong> 의자 앞에서 앉기
               </li>
               <li>
-                <strong>R</strong> to use computer to screen share (when facing a computer)
+                <strong>R</strong> 컴퓨터 앞에서 화면 공유
               </li>
               <li>
-                <strong>Z</strong> to shoot a wake-up arrow at whoever you are facing
+                <strong>Z</strong> 바라보는 사람에게 화살 쏘아 깨우기
               </li>
               <li>
-                <strong>Enter</strong> to open chat
+                <strong>Enter</strong> 채팅 열기
               </li>
               <li>
-                <strong>ESC</strong> to close chat
+                <strong>ESC</strong> 채팅 닫기
               </li>
             </ul>
             <p className="tip">
               <LightbulbIcon />
-              Video connection will start if you are close to someone else
+              가까이 다가가면 화상 연결이 시작됩니다
             </p>
           </Wrapper>
         )}
@@ -188,7 +204,7 @@ export default function HelperButtonGroup() {
       <ButtonGroup>
         {roomJoined && (
           <>
-            <Tooltip title="Room Info">
+            <Tooltip title="방 정보">
               <StyledFab
                 size="small"
                 onClick={() => {
@@ -199,7 +215,7 @@ export default function HelperButtonGroup() {
                 <ShareIcon />
               </StyledFab>
             </Tooltip>
-            <Tooltip title="Control Guide">
+            <Tooltip title="조작법">
               <StyledFab
                 size="small"
                 onClick={() => {
@@ -226,7 +242,7 @@ export default function HelperButtonGroup() {
             <TwitterIcon />
           </StyledFab>
         </Tooltip>
-        <Tooltip title="Switch Background Theme">
+        <Tooltip title="낮/밤 전환">
           <StyledFab size="small" onClick={() => dispatch(toggleBackgroundMode())}>
             {backgroundMode === BackgroundMode.DAY ? <DarkModeIcon /> : <LightModeIcon />}
           </StyledFab>

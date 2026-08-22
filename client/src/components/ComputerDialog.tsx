@@ -21,10 +21,11 @@ const Backdrop = styled.div`
 const Wrapper = styled.div`
   width: 100%;
   height: 100%;
-  background: #222639;
+  background: var(--panel-bg);
+  border: 1px solid var(--ice-edge);
   border-radius: 16px;
   padding: 16px;
-  color: #eee;
+  color: var(--deep-ice);
   position: relative;
   display: flex;
   flex-direction: column;

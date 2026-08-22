@@ -19,6 +19,7 @@ import Nancy from '../images/login/Nancy_login.png'
 import { useAppSelector, useAppDispatch } from '../hooks'
 import { setLoggedIn } from '../stores/UserStore'
 import { getAvatarString, getColorByString } from '../util'
+import { frostField, glacierButton, lampButton } from '../styles/polar'
 
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
@@ -28,17 +29,22 @@ const Wrapper = styled.form`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: #222639;
-  border-radius: 16px;
-  padding: 36px 60px;
-  box-shadow: 0px 0px 5px #0000006f;
+  background: var(--panel-bg);
+  border: 1px solid var(--ice-edge);
+  border-radius: 20px;
+  padding: 34px 56px;
+  box-shadow: var(--panel-shadow);
 `
 
 const Title = styled.p`
   margin: 5px;
-  font-size: 20px;
-  color: #c2c2c2;
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--glacier);
   text-align: center;
+  opacity: 0.8;
 `
 
 const RoomName = styled.div`
@@ -52,8 +58,10 @@ const RoomName = styled.div`
   align-items: center;
 
   h3 {
-    font-size: 24px;
-    color: #eee;
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 26px;
+    color: var(--deep-ice);
   }
 `
 
@@ -62,16 +70,18 @@ const RoomDescription = styled.div`
   max-height: 150px;
   overflow-wrap: anywhere;
   overflow-y: auto;
-  font-size: 16px;
-  color: #c2c2c2;
+  font-size: 14px;
+  color: var(--deep-ice-dim);
   display: flex;
   justify-content: center;
 `
 
 const SubTitle = styled.h3`
   width: 160px;
-  font-size: 16px;
-  color: #eee;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--deep-ice-dim);
   text-align: center;
 `
 
@@ -88,14 +98,15 @@ const Left = styled.div`
   .swiper {
     width: 160px;
     height: 220px;
-    border-radius: 8px;
+    border-radius: 14px;
     overflow: hidden;
   }
 
   .swiper-slide {
     width: 160px;
     height: 220px;
-    background: #dbdbe0;
+    background: var(--surface-raised);
+    border: 1px solid var(--ice-edge);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -117,6 +128,18 @@ const Bottom = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+`
+
+const NameField = styled(TextField)`
+  ${frostField};
+`
+
+const JoinButton = styled(Button)`
+  ${lampButton};
+`
+
+const WebcamButton = styled(Button)`
+  ${glacierButton};
 `
 
 const Warning = styled.div`
@@ -167,7 +190,7 @@ export default function LoginDialog() {
 
   return (
     <Wrapper onSubmit={handleSubmit}>
-      <Title>Joining</Title>
+      <Title>ENTERING</Title>
       <RoomName>
         <Avatar style={{ background: getColorByString(roomName) }}>
           {getAvatarString(roomName)}
@@ -179,7 +202,7 @@ export default function LoginDialog() {
       </RoomDescription>
       <Content>
         <Left>
-          <SubTitle>Select an avatar</SubTitle>
+          <SubTitle>캐릭터 고르기</SubTitle>
           <Swiper
             modules={[Navigation]}
             navigation
@@ -197,14 +220,14 @@ export default function LoginDialog() {
           </Swiper>
         </Left>
         <Right>
-          <TextField
+          <NameField
             autoFocus
             fullWidth
-            label="Name"
+            label="이름"
             variant="outlined"
             color="secondary"
             error={nameFieldEmpty}
-            helperText={nameFieldEmpty && 'Name is required'}
+            helperText={nameFieldEmpty && '이름을 입력해 주세요'}
             onInput={(e) => {
               setName((e.target as HTMLInputElement).value)
             }}
@@ -212,32 +235,31 @@ export default function LoginDialog() {
           {!videoConnected && (
             <Warning>
               <Alert variant="outlined" severity="warning">
-                <AlertTitle>Warning</AlertTitle>
-                No webcam/mic connected - <strong>connect one for best experience!</strong>
+                <AlertTitle>알림</AlertTitle>
+                웹캠·마이크가 연결되지 않았습니다 - <strong>연결하면 더 편합니다</strong>
               </Alert>
-              <Button
+              <WebcamButton
                 variant="outlined"
-                color="secondary"
                 onClick={() => {
                   game.network.webRTC?.getUserMedia()
                 }}
               >
-                Connect Webcam
-              </Button>
+                웹캠 연결
+              </WebcamButton>
             </Warning>
           )}
 
           {videoConnected && (
             <Warning>
-              <Alert variant="outlined">Webcam connected!</Alert>
+              <Alert variant="outlined">웹캠이 연결되었습니다</Alert>
             </Warning>
           )}
         </Right>
       </Content>
       <Bottom>
-        <Button variant="contained" color="secondary" size="large" type="submit">
-          Join
-        </Button>
+        <JoinButton variant="contained" size="large" type="submit">
+          들어가기
+        </JoinButton>
       </Bottom>
     </Wrapper>
   )
