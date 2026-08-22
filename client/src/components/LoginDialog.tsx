@@ -236,7 +236,7 @@ export default function LoginDialog() {
             <Warning>
               <Alert variant="outlined" severity="warning">
                 <AlertTitle>알림</AlertTitle>
-                웹캠·마이크가 연결되지 않았습니다 - <strong>연결하면 더 편합니다</strong>
+                웹캠·마이크가 연결되지 않았습니다
               </Alert>
               <WebcamButton
                 variant="outlined"

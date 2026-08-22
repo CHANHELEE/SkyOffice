@@ -52,7 +52,6 @@ export default function VideoConnectionDialog() {
           >
             <AlertTitle>알림</AlertTitle>
             웹캠이 연결되지 않았습니다
-            <br /> <strong>연결하면 더 편합니다</strong>
           </Alert>
         )}
         <FrostButton

@@ -155,10 +155,6 @@ export default function HelperButtonGroup() {
             <RoomDescription>
               <ArrowRightIcon /> 설명: {roomDescription}
             </RoomDescription>
-            <p className="tip">
-              <LightbulbIcon />
-              공유 링크는 준비 중입니다 ❄️
-            </p>
           </Wrapper>
         )}
         {showControlGuide && (

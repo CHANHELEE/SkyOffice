@@ -74,22 +74,28 @@ export const lampButton = css`
   }
 `
 
-/** quieter sibling for anything that is not the main action */
+/**
+ * Quieter sibling for anything that is not the main action.
+ *
+ * Solid, not translucent: these sit straight on the map, and a see-through fill
+ * left them unreadable against the ice.
+ */
 export const glacierButton = css`
   && {
     font-family: var(--display);
     font-size: 14px;
     letter-spacing: 0.03em;
-    color: var(--glacier);
-    background: #2b8fc40f;
-    border: 1px solid var(--ice-edge);
+    color: #ffffff;
+    background: linear-gradient(180deg, #4aa8d8, #2b8fc4);
+    border: 1px solid #1f79ab;
     border-radius: 999px;
-    padding: 6px 18px;
-    transition: background 0.2s, border-color 0.2s;
+    padding: 7px 20px;
+    box-shadow: 0 4px 12px #0f3a5c33, inset 0 1px 0 #ffffff4d;
+    transition: background 0.2s, box-shadow 0.2s;
 
     &:hover {
-      background: #2b8fc41f;
-      border-color: var(--ice-edge-strong);
+      background: linear-gradient(180deg, #5cb6e2, #2f9bd2);
+      box-shadow: 0 6px 16px #0f3a5c4d, inset 0 1px 0 #ffffff66;
     }
   }
 `

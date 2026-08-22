@@ -229,32 +229,34 @@ export default class Background extends Phaser.Scene {
   private letItSnow(width: number, height: number, color: number, alpha: number) {
     this.snow = this.add.group()
 
-    for (let i = 0; i < 110; i++) {
-      const size = Phaser.Math.RND.between(1, 3)
+    for (let i = 0; i < 170; i++) {
+      const size = Phaser.Math.RND.between(2, 6)
+      // treat size as distance: the big ones fall fast and bright up front
+      const near = size / 6
+
       const flake = this.add
-        .rectangle(
+        .circle(
           Phaser.Math.RND.between(0, width),
           Phaser.Math.RND.between(0, height),
-          size,
-          size,
+          size / 2,
           color,
-          // the small ones are further away, so they are fainter and slower
-          alpha * Phaser.Math.RND.realInRange(0.3, 1)
+          alpha * (0.45 + near * 0.55)
         )
+        .setStrokeStyle(1, 0x7fb2d4, 0.35 * near)
         .setScrollFactor(0)
 
       this.snow.add(flake)
 
       this.tweens.add({
         targets: flake,
-        y: height + 10,
-        x: `+=${Phaser.Math.RND.between(-40, 90)}`,
-        duration: Phaser.Math.RND.between(9000, 22000) / size,
-        delay: Phaser.Math.RND.between(0, 8000),
+        y: height + 12,
+        x: `+=${Phaser.Math.RND.between(-50, 110)}`,
+        duration: Phaser.Math.RND.between(5000, 11000) / near,
+        delay: Phaser.Math.RND.between(0, 7000),
         repeat: -1,
         onRepeat: () => {
-          flake.y = -10
-          flake.x = Phaser.Math.RND.between(-40, width)
+          flake.y = -12
+          flake.x = Phaser.Math.RND.between(-50, width)
         },
       })
     }

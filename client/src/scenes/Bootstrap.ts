@@ -49,6 +49,14 @@ export default class Bootstrap extends Phaser.Scene {
       frameWidth: 64,
       frameHeight: 64,
     })
+    this.load.spritesheet('campfire', 'assets/items/campfire.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    })
+    this.load.spritesheet('cushions', 'assets/items/cushion.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    })
     this.load.spritesheet('vendingmachines', 'assets/items/vendingmachine_polar.png', {
       frameWidth: 48,
       frameHeight: 72,
