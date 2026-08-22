@@ -2,12 +2,14 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 import { sanitizeId } from '../util'
 import { BackgroundMode } from '../../../types/BackgroundMode'
 
-import phaserGame from '../PhaserGame'
-import Bootstrap from '../scenes/Bootstrap'
 
+/**
+ * The igloo is a daytime place. The theme is built around glare off the snow,
+ * and there is no way to switch away from it any more - the toggle went with
+ * the button that used to sit in the corner.
+ */
 export function getInitialBackgroundMode() {
-  const currentHour = new Date().getHours()
-  return currentHour > 6 && currentHour <= 18 ? BackgroundMode.DAY : BackgroundMode.NIGHT
+  return BackgroundMode.DAY
 }
 
 export const userSlice = createSlice({
@@ -21,14 +23,6 @@ export const userSlice = createSlice({
     showJoystick: window.innerWidth < 650,
   },
   reducers: {
-    toggleBackgroundMode: (state) => {
-      const newMode =
-        state.backgroundMode === BackgroundMode.DAY ? BackgroundMode.NIGHT : BackgroundMode.DAY
-
-      state.backgroundMode = newMode
-      const bootstrap = phaserGame.scene.keys.bootstrap as Bootstrap
-      bootstrap.changeBackgroundMode(newMode)
-    },
     setSessionId: (state, action: PayloadAction<string>) => {
       state.sessionId = action.payload
     },
@@ -51,7 +45,6 @@ export const userSlice = createSlice({
 })
 
 export const {
-  toggleBackgroundMode,
   setSessionId,
   setVideoConnected,
   setLoggedIn,

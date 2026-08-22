@@ -33,6 +33,65 @@ import { NavKeys, Keyboard } from '../../../types/KeyboardState'
 /** keeps someone from spraying arrows by holding Z down */
 const ARROW_COOLDOWN = 400
 
+/**
+ * The meeting room, turned into a place to sit round a fire.
+ *
+ * The upstream map has a boardroom here - a long table with eight office chairs
+ * - which is the least igloo-like thing in the building. Rather than editing
+ * map.json and carrying that conflict against upstream forever, the objects
+ * inside this rectangle are skipped as the map is built and the fire and
+ * cushions are placed in code.
+ */
+const FIRE_ROOM = { left: 250, top: 600, right: 545, bottom: 780 }
+
+const inFireRoom = (x: number, y: number) =>
+  x >= FIRE_ROOM.left && x <= FIRE_ROOM.right && y >= FIRE_ROOM.top && y <= FIRE_ROOM.bottom
+
+/**
+ * The middle of the room, measured rather than guessed: the walls sit at x 176
+ * and 624, and at y 530 and 786, so the floor's centre is here. The first
+ * attempt put the fire where the old table was, which was well below centre.
+ */
+const FIRE_CENTRE = { x: 400, y: 664 }
+/** drawn at native 64px - scaling pixel art by 2.6 smeared every pixel */
+const FIRE_SCALE = 1
+
+/** how far the cushions sit from the fire */
+const CUSHION_RADIUS = 82
+const CUSHION_COUNT = 8
+
+type Facing = 'up' | 'down' | 'left' | 'right'
+
+/**
+ * Cushions on an exact circle, each turned to face the fire. The angles are
+ * computed rather than hand-placed, so the ring is actually round - the
+ * hand-written offsets it replaces were visibly lopsided.
+ */
+function cushionRing() {
+  const seats: { x: number; y: number; direction: Facing }[] = []
+
+  for (let i = 0; i < CUSHION_COUNT; i++) {
+    // start at the top so a cushion sits squarely above and below the fire
+    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / CUSHION_COUNT
+    const dx = Math.cos(angle)
+    const dy = Math.sin(angle)
+
+    // You sit looking inward, so face back along the radius. The epsilon matters:
+    // on the exact diagonals |dx| and |dy| differ only in the last float bit, and
+    // without it symmetric cushions picked opposite axes. Ties go to up/down.
+    const direction: Facing =
+      Math.abs(dx) > Math.abs(dy) + 1e-6 ? (dx > 0 ? 'left' : 'right') : dy > 0 ? 'up' : 'down'
+
+    seats.push({
+      x: FIRE_CENTRE.x + dx * CUSHION_RADIUS,
+      y: FIRE_CENTRE.y + dy * CUSHION_RADIUS,
+      direction,
+    })
+  }
+
+  return seats
+}
+
 export default class Game extends Phaser.Scene {
   network!: Network
   private cursors!: NavKeys
@@ -108,6 +167,7 @@ export default class Game extends Phaser.Scene {
     const chairs = this.physics.add.staticGroup({ classType: Chair })
     const chairLayer = this.map.getObjectLayer('Chair')
     chairLayer.objects.forEach((chairObj) => {
+      if (inFireRoom(chairObj.x!, chairObj.y!)) return
       const item = this.addObjectFromTiled(chairs, chairObj, 'chairs', 'chair') as Chair
       // custom properties[0] is the object direction specified in Tiled
       item.itemDirection = chairObj.properties[0].value
@@ -155,6 +215,15 @@ export default class Game extends Phaser.Scene {
     this.addGroupFromTiled('Basement', 'basement', 'Basement', true)
 
     this.otherPlayers = this.physics.add.group({ classType: OtherPlayer })
+
+    // The office tileset is the upstream art - there is no antarctic tileset in
+    // the repo and pixel art is not something we can author here. Bright sky
+    // around the map plus snow falling through it is what carries the theme into
+    // the room, without dulling the pixel art underneath.
+    this.cameras.main.setBackgroundColor('#bfe4f7')
+    this.letItSnowIndoors()
+
+    this.lightTheFire(chairs)
 
     createArrowTexture(this)
     this.myArrows = this.physics.add.group({ classType: Arrow, runChildUpdate: true })
@@ -271,6 +340,78 @@ export default class Game extends Phaser.Scene {
     this.cameras.main.shake(250, 0.006)
   }
 
+  /**
+   * The fire in the middle of what used to be the boardroom, with cushions round
+   * it. The cushions are Chair items, so sitting on one works exactly the way
+   * sitting on an office chair does - same prompt, same animation.
+   */
+  private lightTheFire(chairs: Phaser.Physics.Arcade.StaticGroup) {
+    if (!this.anims.exists('campfire_burn')) {
+      this.anims.create({
+        key: 'campfire_burn',
+        frames: this.anims.generateFrameNumbers('campfire', { start: 0, end: 5 }),
+        frameRate: 9,
+        repeat: -1,
+      })
+    }
+
+    cushionRing().forEach((seat) => {
+      const cushion = chairs.get(seat.x, seat.y, 'cushions') as Chair
+      cushion.itemDirection = seat.direction
+      cushion.setDepth(seat.y)
+    })
+
+    const fire = this.add
+      .sprite(FIRE_CENTRE.x, FIRE_CENTRE.y, 'campfire')
+      .setScale(FIRE_SCALE)
+      // the hearth sits on the floor and the flame rises from it, so anchor the
+      // sprite at the stones rather than at its middle
+      .setOrigin(0.5, 0.8)
+      .setDepth(FIRE_CENTRE.y)
+    fire.play('campfire_burn')
+  }
+
+  /**
+   * Snow drifting across the room. Fixed to the camera rather than the world so
+   * it reads as weather in front of you, not as objects lying on the floor.
+   */
+  private letItSnowIndoors() {
+    const { width, height } = this.cameras.main
+
+    for (let i = 0; i < 130; i++) {
+      // a spread of sizes: the big ones are close and read clearly, the small
+      // ones sit further back. all of them need an outline, because white on
+      // white ice was invisible before.
+      const size = Phaser.Math.RND.between(2, 5)
+      const near = size / 5
+
+      const flake = this.add
+        .circle(
+          Phaser.Math.RND.between(0, width),
+          Phaser.Math.RND.between(0, height),
+          size / 2,
+          0xffffff,
+          0.55 + near * 0.4
+        )
+        .setStrokeStyle(1, 0x9dc4de, 0.5 + near * 0.35)
+        .setScrollFactor(0)
+        .setDepth(9000)
+
+      this.tweens.add({
+        targets: flake,
+        y: height + 10,
+        x: `+=${Phaser.Math.RND.between(-40, 90)}`,
+        duration: Phaser.Math.RND.between(4200, 9000) / near,
+        delay: Phaser.Math.RND.between(0, 6000),
+        repeat: -1,
+        onRepeat: () => {
+          flake.y = -10
+          flake.x = Phaser.Math.RND.between(-40, width)
+        },
+      })
+    }
+  }
+
   private handleItemSelectorOverlap(playerSelector, selectionItem) {
     const currentItem = playerSelector.selectedItem as Item
     // currentItem is undefined if nothing was perviously selected
@@ -311,6 +452,8 @@ export default class Game extends Phaser.Scene {
     const group = this.physics.add.staticGroup()
     const objectLayer = this.map.getObjectLayer(objectLayerName)
     objectLayer.objects.forEach((object) => {
+      // the boardroom table lives across these layers; the fire goes there now
+      if (inFireRoom(object.x!, object.y!)) return
       const actualX = object.x! + object.width! * 0.5
       const actualY = object.y! - object.height! * 0.5
       group
