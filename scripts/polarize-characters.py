@@ -55,26 +55,34 @@ def build(source_hexes, light, dark):
 
 
 OUTFITS = {
+    # White expedition gear, the way people actually dress for the pole. The
+    # scarf carries the colour, because at 32px a white hood on a white parka is
+    # the only thing four people could not be told apart by.
     'adam': {
         'parts': [
-            (['#bba386', '#959d58', '#687253', '#5f694a', '#5d6043'], '#ffb3a0', '#b8402c'),
-            (['#9f74a8', '#805e8e'], '#ef6247', '#a13124'),
+            # hood
+            (['#bba386', '#959d58', '#687253', '#5f694a', '#5d6043'], '#ffffff', '#b8c6d6'),
+            # parka body, kept a shade warmer than the hood so the two separate
+            (['#9f74a8', '#805e8e'], '#e9e2d4', '#a89e8d'),
         ],
-        'scarf': ('#ffd98a', '#d99a2e'),
+        'scarf': ('#ff7a6b', '#bd3a2c'),
+        'fur': '#ff9d8f',
     },
     'ash': {
         'parts': [
-            (['#ba8d5e', '#957350', '#8d7051', '#8a6552', '#6f5446'], '#9ed4f5', '#2b6398'),
-            (['#ae4a52', '#a2394b', '#6f494d', '#5a444a'], '#4f9edb', '#1f4d7d'),
+            (['#ba8d5e', '#957350', '#8d7051', '#8a6552', '#6f5446'], '#f7fbff', '#aebfd1'),
+            (['#ae4a52', '#a2394b', '#6f494d', '#5a444a'], '#e2e7ee', '#9aa5b3'),
         ],
-        'scarf': ('#ff9d9d', '#c2434f'),
+        'scarf': ('#63b4ee', '#255f92'),
+        'fur': '#8ecdf5',
     },
     'lucy': {
         'parts': [
-            (['#cc9659', '#c2884b', '#b37b3f', '#af723b', '#ab6736', '#774934'], '#b3f4de', '#227f66'),
-            (['#d0be9c', '#bfa690'], '#5fd3b2', '#2a9179'),
+            (['#cc9659', '#c2884b', '#b37b3f', '#af723b', '#ab6736', '#774934'], '#fffdf7', '#c9c0ae'),
+            (['#d0be9c', '#bfa690'], '#e6e1d4', '#aaa392'),
         ],
-        'scarf': ('#ffc07a', '#d9662e'),
+        'scarf': ('#5fd9b8', '#1f8a72'),
+        'fur': '#86e6c9',
     },
     # 뽀로로풍 펭귄: 파란 조종모, 고글, 주황 부리
     'nancy': {
@@ -139,11 +147,28 @@ def paint_frame(px, ox, oy, w, h, spec, face):
             if y <= top + 1:
                 px[ox + x, oy + y] = (*(light if y == top else dark), 255)
 
+    # fur trim: hood pixels that touch the face. an earlier version traced the
+    # whole silhouette and the halo read as a sticker edge - real trim only runs
+    # round the opening.
+    fur = spec.get('fur')
+    if fur:
+        trim = rgb(fur)
+        face_set = set(face)
+        hood = spec['_hood']
+        for x, y in list(face_set):
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = x + dx, y + dy
+                if not (0 <= nx < w and 0 <= ny < h) or (nx, ny) in face_set:
+                    continue
+                r, g, b, a = px[ox + nx, oy + ny]
+                if a and (r, g, b) in hood:
+                    px[ox + nx, oy + ny] = (*trim, 255)
+
     # the scarf goes round the neck: the first rows of body under the chin
     scarf = spec.get('scarf')
     if scarf:
         light, dark = rgb(scarf[0]), rgb(scarf[1])
-        rows = range(bottom + 1, min(bottom + 4, h))
+        rows = range(bottom + 1, min(bottom + 5, h))
         for y in rows:
             for x in range(w):
                 r, g, b, a = px[ox + x, oy + y]
@@ -157,6 +182,10 @@ for name, spec in OUTFITS.items():
     for source_hexes, light, dark in spec['parts']:
         mapping.update(build(source_hexes, light, dark))
 
+    # what the hood ramp became, so the fur trim can find its edge
+    spec['_hood'] = {
+        mapping[c] for c in (rgb(h) for h in spec['parts'][0][0]) if c in mapping
+    }
     skin_rgb = {rgb(h) for h in SKIN}
 
     for src, out, framed in [
