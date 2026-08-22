@@ -175,28 +175,10 @@ export default function Igloo() {
           <path d={`M ${CX - 50} ${BASE_Y - 14} Q ${CX} ${BASE_Y - 38} ${CX + 50} ${BASE_Y - 14}`} />
         </g>
 
-        {/* the opening, with somebody leaning out of it */}
+        {/* the opening */}
         <path
           d={`M ${CX - 38} ${BASE_Y + 12} A 38 38 0 0 1 ${CX + 38} ${BASE_Y + 12} Z`}
           fill="url(#igloo-doorway)"
-        />
-        <g>
-          <ellipse cx={CX} cy={BASE_Y + 4} rx="24" ry="25" fill="#ffffff" />
-          <circle cx={CX - 8} cy={BASE_Y - 4} r="3.4" fill="#6e9cbd" />
-          <circle cx={CX + 8} cy={BASE_Y - 4} r="3.4" fill="#6e9cbd" />
-          <path
-            d={`M ${CX - 6} ${BASE_Y + 6} Q ${CX} ${BASE_Y + 11} ${CX + 6} ${BASE_Y + 6}`}
-            fill="none"
-            stroke="#6e9cbd"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-          />
-          <circle cx={CX - 16} cy={BASE_Y + 4} r="3.6" fill="#ffd3dc" />
-          <circle cx={CX + 16} cy={BASE_Y + 4} r="3.6" fill="#ffd3dc" />
-        </g>
-        <path
-          d={`M ${CX - 38} ${BASE_Y + 12} A 38 38 0 0 1 ${CX + 38} ${BASE_Y + 12}`}
-          fill="none"
           stroke="#8fbdd8"
           strokeOpacity="0.55"
           strokeWidth="1.6"
