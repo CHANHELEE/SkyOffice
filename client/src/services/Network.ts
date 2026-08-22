@@ -180,6 +180,23 @@ export default class Network {
     phaserEvents.on(Event.PLAYER_JOINED, callback, context)
   }
 
+  /**
+   * Announce the players who were already in the room when we joined.
+   *
+   * onAdd fires for them, but the only thing that puts a character on screen is
+   * their name *changing* - and theirs was set long before we got here, so
+   * onChange never replays it. Emitting from onAdd would not help either:
+   * initialize() runs while joining, before the game scene exists to listen.
+   * So the game scene calls this itself once its listeners are up.
+   */
+  announceExistingPlayers() {
+    this.room?.state.players.forEach((player: IPlayer, key: string) => {
+      if (key === this.mySessionId || player.name === '') return
+      phaserEvents.emit(Event.PLAYER_JOINED, player, key)
+      store.dispatch(setPlayerNameMap({ id: key, name: player.name }))
+    })
+  }
+
   // method to register event listener and call back function when a player left
   onPlayerLeft(callback: (key: string) => void, context?: any) {
     phaserEvents.on(Event.PLAYER_LEFT, callback, context)

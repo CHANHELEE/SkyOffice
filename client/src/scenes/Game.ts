@@ -209,6 +209,9 @@ export default class Game extends Phaser.Scene {
     this.network.onChatMessageAdded(this.handleChatMessageAdded, this)
     this.network.onArrowShot(this.handleArrowShot, this)
     this.network.onArrowHitMe(this.handleArrowHitMe, this)
+
+    // now that the listeners are up, draw whoever was already in the room
+    this.network.announceExistingPlayers()
   }
 
   /** fire a wake-up arrow in the direction my player is facing */
@@ -320,6 +323,8 @@ export default class Game extends Phaser.Scene {
 
   // function to add new player to the otherPlayer group
   private handlePlayerJoined(newPlayer: IPlayer, id: string) {
+    // guard against adding the same player twice and orphaning the first sprite
+    if (this.otherPlayerMap.has(id)) return
     const otherPlayer = this.add.otherPlayer(newPlayer.x, newPlayer.y, 'adam', id, newPlayer.name)
     this.otherPlayers.add(otherPlayer)
     this.otherPlayerMap.set(id, otherPlayer)
