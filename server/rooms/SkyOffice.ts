@@ -157,7 +157,10 @@ export class SkyOffice extends Room<OfficeState> {
 
   async onAuth(client: Client, options: { password: string | null }) {
     if (this.password) {
-      const validPassword = await bcrypt.compare(options.password, this.password)
+      // bcrypt.compare throws when given a nullish value, so reject a missing password up front
+      const validPassword = options.password
+        ? await bcrypt.compare(options.password, this.password)
+        : false
       if (!validPassword) {
         throw new ServerError(403, 'Password is incorrect!')
       }

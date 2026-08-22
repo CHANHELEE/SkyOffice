@@ -1,7 +1,7 @@
 import http from 'http'
 import express from 'express'
 import cors from 'cors'
-import { Server, LobbyRoom } from 'colyseus'
+import { Server, matchMaker } from 'colyseus'
 import { monitor } from '@colyseus/monitor'
 import { RoomType } from '../types/Rooms'
 
@@ -10,6 +10,12 @@ import { RoomType } from '../types/Rooms'
 import { SkyOffice } from './rooms/SkyOffice'
 
 const port = Number(process.env.PORT || 2567)
+const iglooRoomPassword = process.env.IGLOO_ROOM_PASSWORD
+if (!iglooRoomPassword) {
+  throw new Error(
+    'IGLOO_ROOM_PASSWORD must be set - the igloo room password is never committed to the repo'
+  )
+}
 const app = express()
 
 app.use(cors())
@@ -22,14 +28,17 @@ const gameServer = new Server({
 })
 
 // register room handlers
-gameServer.define(RoomType.LOBBY, LobbyRoom)
-gameServer.define(RoomType.PUBLIC, SkyOffice, {
-  name: 'Public Lobby',
-  description: 'For making friends and familiarizing yourself with the controls',
-  password: null,
+/**
+ * igloo members-only room. it is the only game room on this server:
+ * the open public lobby and user-created custom rooms were removed on purpose
+ * so that outsiders cannot wander in.
+ */
+gameServer.define(RoomType.IGLOO, SkyOffice, {
+  name: 'igloo',
+  description: '이글루 스터디 전용 공간',
+  password: iglooRoomPassword,
   autoDispose: false,
 })
-gameServer.define(RoomType.CUSTOM, SkyOffice).enableRealtimeListing()
 
 /**
  * Register @colyseus/social routes
@@ -42,5 +51,16 @@ gameServer.define(RoomType.CUSTOM, SkyOffice).enableRealtimeListing()
 // register colyseus monitor AFTER registering your room handlers
 app.use('/colyseus', monitor())
 
-gameServer.listen(port)
-console.log(`Listening on ws://localhost:${port}`)
+gameServer
+  .listen(port)
+  .then(() => {
+    console.log(`Listening on ws://localhost:${port}`)
+    // create the igloo room up front so it is always there, even before the first member joins
+    return matchMaker.createRoom(RoomType.IGLOO, {})
+  })
+  .then((room) => {
+    console.log(`igloo room is ready (roomId: ${room.roomId})`)
+  })
+  .catch((error) => {
+    console.error('failed to start the server or create the igloo room:', error)
+  })
