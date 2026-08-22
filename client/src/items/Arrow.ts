@@ -23,20 +23,53 @@ const directions: Record<Direction, { x: number; y: number; angle: number }> = {
 }
 
 /**
- * The repo has no arrow asset, so draw one once and keep it in the texture
- * cache. Replacing this with a loaded spritesheet later only touches this file.
+ * The repo has no arrow asset, so the arrow is drawn once and kept in the
+ * texture cache. It is a shard of ice with a snowflake for fletching, pointing
+ * right at angle 0 - Arrow.fire() rotates it from there.
+ *
+ * Written out pixel by pixel rather than as rectangles and triangles: at this
+ * size every pixel is a decision, and a map you can read is the only way to
+ * keep it cute rather than merely small.
  */
+const SHARD = [
+  '........o........',
+  '.o.....oloo......',
+  'oio....ollloo....',
+  'iiiooooolwwlloo..',
+  'oilllllllllwlllo.',
+  'iiiiiiiiiiiiiiiio',
+  'oiiiiiiiiiiiiiio.',
+  'iiioooooiiiiioo..',
+  'oio....oiiioo....',
+  '.o.....oioo......',
+  '........o........',
+]
+
+const SHARD_COLOURS: Record<string, string> = {
+  o: '#2f6f9e', // deep ice, the outline
+  i: '#7fcdf0', // ice
+  l: '#cdf0ff', // where the light catches it
+  w: '#ffffff', // shine
+}
+
 export function createArrowTexture(scene: Phaser.Scene) {
   if (scene.textures.exists(ARROW_TEXTURE)) return
 
-  const graphics = scene.make.graphics({ x: 0, y: 0 }, false)
-  graphics.fillStyle(0x222639, 1)
-  graphics.fillRect(0, 3, 11, 2) // shaft
-  graphics.fillTriangle(10, 0, 18, 4, 10, 8) // head
-  graphics.fillStyle(0x33ac96, 1)
-  graphics.fillRect(0, 1, 2, 6) // fletching
-  graphics.generateTexture(ARROW_TEXTURE, 18, 8)
-  graphics.destroy()
+  const width = SHARD[0].length
+  const height = SHARD.length
+  const canvas = scene.textures.createCanvas(ARROW_TEXTURE, width, height)
+  const ctx = canvas.getContext()
+
+  SHARD.forEach((row, y) => {
+    [...row].forEach((cell, x) => {
+      const colour = SHARD_COLOURS[cell]
+      if (!colour) return
+      ctx.fillStyle = colour
+      ctx.fillRect(x, y, 1, 1)
+    })
+  })
+
+  canvas.refresh()
 }
 
 export default class Arrow extends Phaser.Physics.Arcade.Sprite {
