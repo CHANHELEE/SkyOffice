@@ -43,24 +43,54 @@ const ARROW_COOLDOWN = 400
  * cushions are placed in code.
  */
 const FIRE_ROOM = { left: 250, top: 600, right: 545, bottom: 780 }
-const FIRE_CENTRE = { x: 400, y: 690 }
-/** the fire is the point of the room, so it is drawn well above tile size */
-const FIRE_SCALE = 2.6
 
 const inFireRoom = (x: number, y: number) =>
   x >= FIRE_ROOM.left && x <= FIRE_ROOM.right && y >= FIRE_ROOM.top && y <= FIRE_ROOM.bottom
 
-/** where people sit: a ring round the fire, each facing inward */
-const CUSHIONS: { x: number; y: number; direction: 'up' | 'down' | 'left' | 'right' }[] = [
-  { x: -84, y: -6, direction: 'right' },
-  { x: -44, y: -50, direction: 'down' },
-  { x: 12, y: -60, direction: 'down' },
-  { x: 68, y: -50, direction: 'down' },
-  { x: 100, y: -6, direction: 'left' },
-  { x: 68, y: 46, direction: 'up' },
-  { x: 12, y: 58, direction: 'up' },
-  { x: -44, y: 46, direction: 'up' },
-]
+/**
+ * The middle of the room, measured rather than guessed: the walls sit at x 176
+ * and 624, and at y 530 and 786, so the floor's centre is here. The first
+ * attempt put the fire where the old table was, which was well below centre.
+ */
+const FIRE_CENTRE = { x: 400, y: 664 }
+/** drawn at native 64px - scaling pixel art by 2.6 smeared every pixel */
+const FIRE_SCALE = 1
+
+/** how far the cushions sit from the fire */
+const CUSHION_RADIUS = 82
+const CUSHION_COUNT = 8
+
+type Facing = 'up' | 'down' | 'left' | 'right'
+
+/**
+ * Cushions on an exact circle, each turned to face the fire. The angles are
+ * computed rather than hand-placed, so the ring is actually round - the
+ * hand-written offsets it replaces were visibly lopsided.
+ */
+function cushionRing() {
+  const seats: { x: number; y: number; direction: Facing }[] = []
+
+  for (let i = 0; i < CUSHION_COUNT; i++) {
+    // start at the top so a cushion sits squarely above and below the fire
+    const angle = -Math.PI / 2 + (Math.PI * 2 * i) / CUSHION_COUNT
+    const dx = Math.cos(angle)
+    const dy = Math.sin(angle)
+
+    // You sit looking inward, so face back along the radius. The epsilon matters:
+    // on the exact diagonals |dx| and |dy| differ only in the last float bit, and
+    // without it symmetric cushions picked opposite axes. Ties go to up/down.
+    const direction: Facing =
+      Math.abs(dx) > Math.abs(dy) + 1e-6 ? (dx > 0 ? 'left' : 'right') : dy > 0 ? 'up' : 'down'
+
+    seats.push({
+      x: FIRE_CENTRE.x + dx * CUSHION_RADIUS,
+      y: FIRE_CENTRE.y + dy * CUSHION_RADIUS,
+      direction,
+    })
+  }
+
+  return seats
+}
 
 export default class Game extends Phaser.Scene {
   network!: Network
@@ -319,25 +349,24 @@ export default class Game extends Phaser.Scene {
     if (!this.anims.exists('campfire_burn')) {
       this.anims.create({
         key: 'campfire_burn',
-        frames: this.anims.generateFrameNumbers('campfire', { start: 0, end: 3 }),
-        frameRate: 8,
+        frames: this.anims.generateFrameNumbers('campfire', { start: 0, end: 5 }),
+        frameRate: 9,
         repeat: -1,
       })
     }
 
-    CUSHIONS.forEach((seat, i) => {
-      const x = FIRE_CENTRE.x + seat.x
-      const y = FIRE_CENTRE.y + seat.y
-      const cushion = chairs.get(x, y, 'cushions', 0) as Chair
+    cushionRing().forEach((seat) => {
+      const cushion = chairs.get(seat.x, seat.y, 'cushions') as Chair
       cushion.itemDirection = seat.direction
-      cushion.setDepth(y)
+      cushion.setDepth(seat.y)
     })
 
     const fire = this.add
       .sprite(FIRE_CENTRE.x, FIRE_CENTRE.y, 'campfire')
       .setScale(FIRE_SCALE)
-      // the logs sit on the floor, so grow it upward from its base
-      .setOrigin(0.5, 0.82)
+      // the hearth sits on the floor and the flame rises from it, so anchor the
+      // sprite at the stones rather than at its middle
+      .setOrigin(0.5, 0.8)
       .setDepth(FIRE_CENTRE.y)
     fire.play('campfire_burn')
   }
