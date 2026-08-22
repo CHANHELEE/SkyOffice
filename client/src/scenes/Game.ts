@@ -245,8 +245,8 @@ export default class Game extends Phaser.Scene {
     this.spawnArrow(this.otherArrows, clientId, x, y, direction as Direction)
   }
 
-  private handleArrowHitWall(arrow) {
-    ;(arrow as Arrow).destroy()
+  private handleArrowHitWall(arrow: Phaser.GameObjects.GameObject) {
+    (arrow as Arrow).destroy()
   }
 
   private handleArrowHitPlayer(arrowObject, otherPlayerObject) {
