@@ -3,3 +3,11 @@
 node_modules
 /.DS_Store
 /server/lib
+
+# IDE
+/.idea
+/.vscode
+
+# local env (never commit IGLOO_ROOM_PASSWORD)
+.env
+.env.local
