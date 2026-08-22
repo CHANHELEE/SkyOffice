@@ -67,9 +67,12 @@ types/             서버·클라이언트 공용 타입 (별도 package)
 ## 개발 명령어
 
 ```bash
+# 최초 1회: .env 준비 (gitignore 되어 있다)
+cp .env.example .env        # IGLOO_ROOM_PASSWORD 값을 채운다
+
 # 서버 (루트에서). IGLOO_ROOM_PASSWORD 없이는 부팅이 실패한다.
 yarn
-IGLOO_ROOM_PASSWORD=igloopw yarn start   # ts-node-dev, 기본 2567 포트
+yarn start                  # ts-node-dev, 기본 2567 포트
 
 # 클라이언트
 cd client && yarn && yarn dev   # vite dev server
@@ -83,7 +86,9 @@ cd client && yarn build         # tsc + vite build
 | `IGLOO_ROOM_PASSWORD` | O | igloo 방 입장 비밀번호. **저장소에 기본값을 두지 않는다.** 없으면 서버가 부팅되지 않는다 |
 | `PORT` | X | 게임 서버 포트 (기본 2567) |
 
-`dotenv`는 붙어 있지 않다. 로컬에서는 위처럼 명령 앞에 붙이거나 셸에서 export 한다.
+로컬에서는 루트의 `.env`를 `dotenv`가 읽는다 (`server/index.ts`). `.env` 경로는 cwd가 아니라
+파일 위치 기준으로 잡혀 있다 — `yarn start`는 `server/`에서, Procfile은 루트에서 돌기 때문이다.
+배포 환경에는 `.env`를 두지 말고 실제 환경변수를 주입한다.
 
 `types/`는 별도 패키지이므로 타입을 수정하면 서버·클라이언트 양쪽에서 다시 설치/빌드가 필요할 수 있다.
 
