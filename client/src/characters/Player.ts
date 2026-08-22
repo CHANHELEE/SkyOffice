@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { PlayerBehavior } from '../../../types/PlayerBehavior'
+import { Direction } from '../items/Arrow'
 
 /** movement speed in pixels per second */
 export const WALK_SPEED = 200
@@ -66,6 +67,12 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     playContainerBody
       .setSize(this.width * collisionScale[0], this.height * collisionScale[1])
       .setOffset(-8, this.height * (1 - collisionScale[1]) + 6)
+  }
+
+  /** direction the character is facing, read back out of the current animation key */
+  get facingDirection(): Direction {
+    const direction = this.anims.currentAnim?.key.split('_')[2]
+    return direction === 'up' || direction === 'left' || direction === 'right' ? direction : 'down'
   }
 
   updateDialogBubble(content: string) {
