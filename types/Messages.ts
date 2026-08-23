@@ -13,4 +13,5 @@ export enum Message {
   SEND_ROOM_DATA,
   SHOOT_ARROW,
   ARROW_HIT,
+  HEARTBEAT,
 }
