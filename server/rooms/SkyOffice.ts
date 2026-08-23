@@ -139,6 +139,14 @@ export class SkyOffice extends Room<OfficeState> {
       })
     })
 
+    /**
+     * A tick from a member who is sitting still. Nothing to do with it - the
+     * point is that it arrives: an idle socket carries no application messages
+     * at all, and both Render's idle timer and anything else along the path
+     * cannot tell a room full of people from an empty one.
+     */
+    this.onMessage(Message.HEARTBEAT, () => {})
+
     // when a player shoots a wake-up arrow, let everyone else render it.
     // arrows are cosmetic, so they are broadcast rather than kept in room state.
     this.onMessage(
@@ -198,6 +206,7 @@ export class SkyOffice extends Room<OfficeState> {
   }
 
   onJoin(client: Client, options: any) {
+    console.log(`join  ${client.sessionId} - ${this.clients.length} in the room`)
     this.state.players.set(client.sessionId, new Player())
     client.send(Message.SEND_ROOM_DATA, {
       id: this.roomId,
@@ -207,6 +216,11 @@ export class SkyOffice extends Room<OfficeState> {
   }
 
   onLeave(client: Client, consented: boolean) {
+    // consented means they closed the tab or walked out on purpose. anything
+    // else is the socket dying under them, which is the thing worth chasing.
+    console.log(
+      `leave ${client.sessionId} - consented=${consented}, ${this.clients.length} left in the room`
+    )
     if (this.state.players.has(client.sessionId)) {
       this.state.players.delete(client.sessionId)
     }

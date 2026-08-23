@@ -15,9 +15,13 @@ import {
 } from '../stores/ChatStore'
 import { setWhiteboardUrls } from '../stores/WhiteboardStore'
 
+/** how often a member who is doing nothing still says hello */
+const HEARTBEAT_INTERVAL = 4 * 60 * 1000
+
 export default class Network {
   private client: Client
   private room?: Room<IOfficeState>
+  private heartbeat?: number
   webRTC?: WebRTC
 
   mySessionId!: string
@@ -52,9 +56,34 @@ export default class Network {
     this.initialize()
   }
 
+  /**
+   * A member who is reading rather than walking around sends nothing at all,
+   * and with no state change the server sends nothing back. The socket goes
+   * completely silent, and silence is indistinguishable from an empty room -
+   * to Render's idle timer, and to anything else between here and there.
+   *
+   * So say something every few minutes. Four minutes sits well inside any idle
+   * window worth worrying about, and a hidden tab's throttled timers still make
+   * it comfortably.
+   */
+  private startHeartbeat() {
+    this.stopHeartbeat()
+    this.heartbeat = window.setInterval(() => {
+      this.room?.send(Message.HEARTBEAT)
+    }, HEARTBEAT_INTERVAL)
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeat === undefined) return
+    window.clearInterval(this.heartbeat)
+    this.heartbeat = undefined
+  }
+
   // set up all network listeners before the game starts
   initialize() {
     if (!this.room) return
+
+    this.startHeartbeat()
 
     this.mySessionId = this.room.sessionId
     store.dispatch(setSessionId(this.room.sessionId))
@@ -129,6 +158,7 @@ export default class Network {
      * common cause, but a flaky network or a deploy does the same thing.
      */
     this.room.onLeave((code) => {
+      this.stopHeartbeat()
       console.warn('left the igloo room, code:', code)
       store.dispatch(setDisconnected(true))
     })
