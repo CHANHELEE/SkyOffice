@@ -128,22 +128,67 @@ const EnterButton = styled(Button)`
   }
 `
 
-const Status = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--deep-ice-faint);
+/* The wake-up has no progress to report - Render gives no signal between "cold"
+   and "up" - so the bar sweeps instead of filling. A bar that creeps to 90% and
+   sits there is a worse lie than one that plainly says "still working". */
+const sweep = keyframes`
+  from { transform: translateX(-105%); }
+  to { transform: translateX(305%); }
 `
 
-/** three dots melting in and out while we reach the server */
+/* tinted rather than white: this sits under a white card on a white screen, and
+   the whole point is that you notice it */
+const Status = styled.div`
+  width: 320px;
+  padding: 16px 18px 18px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #e8f6ff 0%, #d6ecfb 100%);
+  border: 1px solid var(--ice-edge-strong);
+  box-shadow: 0 14px 34px #0f3a5c26, inset 0 1px 0 #ffffffe6;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+`
+const StatusHead = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.01em;
+  color: var(--deep-ice);
+`
+
+/** the one light on while we reach the server */
 const Pulse = styled.span`
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--glacier);
-  box-shadow: 0 0 10px #2b8fc47a;
+  box-shadow: 0 0 12px #2b8fc4a6;
   animation: ${breathe} 1.6s ease-in-out infinite;
+  flex: none;
+`
+const Track = styled.div`
+  height: 8px;
+  border-radius: 999px;
+  background: #ffffffb8;
+  border: 1px solid var(--ice-edge);
+  overflow: hidden;
+`
+const StatusNote = styled.p`
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--deep-ice-dim);
+`
+const Bar = styled.div`
+  width: 33%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7fd5f0, var(--glacier), #7fd5f0);
+  box-shadow: 0 0 10px #2b8fc466;
+  animation: ${sweep} 1.5s cubic-bezier(0.62, 0.02, 0.35, 1) infinite;
 `
 
 export default function RoomSelectionDialog() {
@@ -260,8 +305,14 @@ export default function RoomSelectionDialog() {
 
         {!serverConnected && (
           <Status>
-            <Pulse />
-            서버를 깨우는 중입니다. 처음 접속이면 1분 가까이 걸릴 수 있어요.
+            <StatusHead>
+              <Pulse />
+              서버를 깨우는 중입니다
+            </StatusHead>
+            <Track>
+              <Bar />
+            </Track>
+            <StatusNote>최대 1분 가까이 걸릴 수 있어요.</StatusNote>
           </Status>
         )}
       </Backdrop>
