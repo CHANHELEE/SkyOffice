@@ -62,8 +62,22 @@ gameServer.define(RoomType.IGLOO, SkyOffice, {
  */
 // app.use("/", socialRoutes);
 
-// register colyseus monitor AFTER registering your room handlers
-app.use('/colyseus', monitor())
+/**
+ * The Colyseus monitor lists every room and everyone in it, and lets whoever
+ * opens it dispose rooms and disconnect people. Upstream mounts it with no
+ * authentication at all, which is fine on a laptop and not fine on a public
+ * URL - the igloo room is password-protected precisely so outsiders cannot see
+ * who is inside.
+ *
+ * So it is a local-only tool. RENDER_EXTERNAL_URL only exists on Render, and
+ * NODE_ENV covers anywhere else this might be deployed.
+ */
+const isDeployed = Boolean(process.env.RENDER_EXTERNAL_URL) || process.env.NODE_ENV === 'production'
+if (!isDeployed) {
+  // register colyseus monitor AFTER registering your room handlers
+  app.use('/colyseus', monitor())
+  console.log('colyseus monitor mounted at /colyseus (local only)')
+}
 
 /**
  * Render's free instance sleeps after 15 minutes without inbound traffic. That
