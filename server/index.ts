@@ -74,16 +74,36 @@ app.use('/colyseus', monitor())
  * URL to stay awake during the hours members actually use it. Note this can only
  * KEEP the server awake, never wake it: once it sleeps there is no process left
  * to run the timer, so the first member of the day still waits for a cold start.
+ *
+ * Sitting in the room is not traffic either. Render counts inbound messages, and
+ * people who are reading rather than moving send none - so a room full of members
+ * looks exactly like an empty one, and the instance pulls the floor out from under
+ * them. That is what dropped members after 20-30 minutes outside study hours, so
+ * the ping also goes out whenever anyone is actually inside, whatever the clock says.
  */
 const KEEP_AWAKE_INTERVAL = 10 * 60 * 1000
 const KEEP_AWAKE_FROM_HOUR = 7 // KST
 const KEEP_AWAKE_UNTIL_HOUR = 23 // KST
 
-function keepAwakeWhileMembersAreAround(selfUrl: string) {
+function keepAwakeWhileMembersAreAround(selfUrl: string, iglooRoomId: string) {
   setInterval(() => {
     // the instance runs on UTC, members are in KST
     const hourInSeoul = (new Date().getUTCHours() + 9) % 24
-    if (hourInSeoul < KEEP_AWAKE_FROM_HOUR || hourInSeoul >= KEEP_AWAKE_UNTIL_HOUR) return
+    const withinStudyHours =
+      hourInSeoul >= KEEP_AWAKE_FROM_HOUR && hourInSeoul < KEEP_AWAKE_UNTIL_HOUR
+
+    // getRoomById returns undefined if the room ever went away, and then the
+    // clock is the only thing left to go on
+    const membersInside = (matchMaker.getRoomById(iglooRoomId)?.clients.length ?? 0) > 0
+    if (!withinStudyHours && !membersInside) return
+
+    // worth a line in the log: these are the pings that only happen because
+    // somebody is up late, and they are the ones to check if this regresses
+    if (!withinStudyHours) {
+      console.log(`keep-awake ping outside study hours - ${
+        matchMaker.getRoomById(iglooRoomId)?.clients.length
+      } member(s) in the room`)
+    }
 
     https
       .get(`${selfUrl}/healthz`, (res) => res.resume())
@@ -104,10 +124,11 @@ gameServer
     // RENDER_EXTERNAL_URL is injected by Render, so this stays off everywhere else
     const selfUrl = process.env.RENDER_EXTERNAL_URL
     if (selfUrl) {
-      keepAwakeWhileMembersAreAround(selfUrl)
+      keepAwakeWhileMembersAreAround(selfUrl, room.roomId)
       console.log(
         `keeping awake via ${selfUrl}/healthz every ${KEEP_AWAKE_INTERVAL / 60000} minutes, ` +
-          `${KEEP_AWAKE_FROM_HOUR}:00-${KEEP_AWAKE_UNTIL_HOUR}:00 KST`
+          `${KEEP_AWAKE_FROM_HOUR}:00-${KEEP_AWAKE_UNTIL_HOUR}:00 KST, ` +
+          `and at any hour while anyone is in the room`
       )
     }
   })
