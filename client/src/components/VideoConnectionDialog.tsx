@@ -4,6 +4,7 @@ import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
 
+import { useAppSelector } from '../hooks'
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
 import { openURL } from '../utils/helpers'
@@ -38,31 +39,58 @@ const FrostButton = styled(Button)`
   ${glacierButton};
 `
 
+/* the way back to the study site is not a webcam control, so it gets its own
+   line and a rule above it */
+const Divider = styled.div`
+  width: 100%;
+  max-width: 132px;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--ice-edge-strong);
+`
+
+/**
+ * The controls that live in the top-left corner of the room.
+ *
+ * The link to the igloo web service is always here. It used to share a panel
+ * with the "connect your webcam" button, and that whole panel was only rendered
+ * while the webcam was off - so connecting a camera took the way back to the
+ * study site with it.
+ */
 export default function VideoConnectionDialog() {
   const [connectionWarning, setConnectionWarning] = useState(true)
+  const videoConnected = useAppSelector((state) => state.user.videoConnected)
+  const cameraOn = useAppSelector((state) => state.user.cameraOn)
+  const microphoneOn = useAppSelector((state) => state.user.microphoneOn)
+
+  const webRTC = () => (phaserGame.scene.keys.game as Game).network.webRTC
+
   return (
     <Backdrop>
       <Wrapper>
-        {connectionWarning && (
-          <Alert
-            severity="warning"
-            onClose={() => {
-              setConnectionWarning(!connectionWarning)
-            }}
-          >
+        {!videoConnected && connectionWarning && (
+          <Alert severity="warning" onClose={() => setConnectionWarning(false)}>
             <AlertTitle>알림</AlertTitle>
             웹캠이 연결되지 않았습니다
           </Alert>
         )}
-        <FrostButton
-          variant="contained"
-          onClick={() => {
-            const game = phaserGame.scene.keys.game as Game
-            game.network.webRTC?.getUserMedia()
-          }}
-        >
-          웹캠 연결
-        </FrostButton>
+
+        {videoConnected ? (
+          <>
+            <FrostButton variant="contained" onClick={() => webRTC()?.toggleCamera()}>
+              {cameraOn ? '카메라 끄기' : '카메라 켜기'}
+            </FrostButton>
+            <FrostButton variant="contained" onClick={() => webRTC()?.toggleMicrophone()}>
+              {microphoneOn ? '마이크 끄기' : '마이크 켜기'}
+            </FrostButton>
+          </>
+        ) : (
+          <FrostButton variant="contained" onClick={() => webRTC()?.getUserMedia()}>
+            웹캠 연결
+          </FrostButton>
+        )}
+
+        <Divider />
         <FrostButton variant="contained" onClick={() => openURL(IGLOO_WEB_URL)}>
           이글루 웹사이트
         </FrostButton>

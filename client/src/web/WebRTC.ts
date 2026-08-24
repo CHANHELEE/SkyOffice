@@ -1,14 +1,13 @@
 import Peer from 'peerjs'
 import Network from '../services/Network'
 import store from '../stores'
-import { setVideoConnected } from '../stores/UserStore'
+import { setCameraOn, setMicrophoneOn, setVideoConnected } from '../stores/UserStore'
 
 export default class WebRTC {
   private myPeer: Peer
   private peers = new Map<string, { call: Peer.MediaConnection; video: HTMLVideoElement }>()
   private onCalledPeers = new Map<string, { call: Peer.MediaConnection; video: HTMLVideoElement }>()
   private videoGrid = document.querySelector('.video-grid')
-  private buttonGrid = document.querySelector('.button-grid')
   private myVideo = document.createElement('video')
   private myStream?: MediaStream
   private network: Network
@@ -70,7 +69,8 @@ export default class WebRTC {
       .then((stream) => {
         this.myStream = stream
         this.addVideoStream(this.myVideo, this.myStream)
-        this.setUpButtons()
+        store.dispatch(setCameraOn(true))
+        store.dispatch(setMicrophoneOn(true))
         store.dispatch(setVideoConnected(true))
         this.network.videoConnected()
       })
@@ -130,37 +130,29 @@ export default class WebRTC {
     }
   }
 
-  // method to set up mute/unmute and video on/off buttons
-  setUpButtons() {
-    const audioButton = document.createElement('button')
-    audioButton.innerText = 'Mute'
-    audioButton.addEventListener('click', () => {
-      if (this.myStream) {
-        const audioTrack = this.myStream.getAudioTracks()[0]
-        if (audioTrack.enabled) {
-          audioTrack.enabled = false
-          audioButton.innerText = 'Unmute'
-        } else {
-          audioTrack.enabled = true
-          audioButton.innerText = 'Mute'
-        }
-      }
-    })
-    const videoButton = document.createElement('button')
-    videoButton.innerText = 'Video off'
-    videoButton.addEventListener('click', () => {
-      if (this.myStream) {
-        const audioTrack = this.myStream.getVideoTracks()[0]
-        if (audioTrack.enabled) {
-          audioTrack.enabled = false
-          videoButton.innerText = 'Video on'
-        } else {
-          audioTrack.enabled = true
-          videoButton.innerText = 'Video off'
-        }
-      }
-    })
-    this.buttonGrid?.append(audioButton)
-    this.buttonGrid?.append(videoButton)
+  /**
+   * Camera and microphone on/off.
+   *
+   * Disabling the track rather than stopping it: the call stays up, the other
+   * side just receives black or silence, and turning it back on is instant.
+   * Stopping the track would release the device but tear down what every peer
+   * is receiving, and re-negotiating that is a different job.
+   *
+   * The upstream version put two unstyled English buttons in the corner with
+   * document.createElement. React owns this now, so the state lives in the
+   * store where the buttons can read it.
+   */
+  toggleCamera() {
+    const track = this.myStream?.getVideoTracks()[0]
+    if (!track) return
+    track.enabled = !track.enabled
+    store.dispatch(setCameraOn(track.enabled))
+  }
+
+  toggleMicrophone() {
+    const track = this.myStream?.getAudioTracks()[0]
+    if (!track) return
+    track.enabled = !track.enabled
+    store.dispatch(setMicrophoneOn(track.enabled))
   }
 }
