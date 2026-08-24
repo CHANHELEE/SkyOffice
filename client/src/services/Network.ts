@@ -183,6 +183,11 @@ export default class Network {
       this.webRTC?.deleteOnCalledVideoStream(clientId)
     })
 
+    // when someone turns their camera on or off
+    this.room.onMessage(Message.CAMERA_STATE, ({ clientId, on }) => {
+      this.webRTC?.setPeerCameraOn(clientId, on)
+    })
+
     // when a computer user stops sharing screen
     this.room.onMessage(Message.STOP_SCREEN_SHARE, (clientId: string) => {
       const computerState = store.getState().computer
@@ -314,6 +319,11 @@ export default class Network {
   videoConnected() {
     this.room?.send(Message.VIDEO_CONNECTED)
     phaserEvents.emit(Event.MY_PLAYER_VIDEO_CONNECTED)
+  }
+
+  /** tell the room whether my camera is on, so nobody is left staring at a still */
+  sendCameraState(on: boolean) {
+    this.room?.send(Message.CAMERA_STATE, { on })
   }
 
   // method to send stream-disconnection signal to Colyseus server

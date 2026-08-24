@@ -14,4 +14,5 @@ export enum Message {
   SHOOT_ARROW,
   ARROW_HIT,
   HEARTBEAT,
+  CAMERA_STATE,
 }

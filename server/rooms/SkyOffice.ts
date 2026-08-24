@@ -145,6 +145,20 @@ export class SkyOffice extends Room<OfficeState> {
      * at all, and both Render's idle timer and anything else along the path
      * cannot tell a room full of people from an empty one.
      */
+    /**
+     * Someone turned their camera on or off. The browser gives the far side no
+     * usable signal for this - replaceTrack(null) leaves the receiving track
+     * live and unmuted, so the last frame just sits there - so it is said out
+     * loud and everyone else hides or shows that tile.
+     */
+    this.onMessage(Message.CAMERA_STATE, (client, message: { on: boolean }) => {
+      this.broadcast(
+        Message.CAMERA_STATE,
+        { clientId: client.sessionId, on: message.on },
+        { except: client }
+      )
+    })
+
     this.onMessage(Message.HEARTBEAT, () => {})
 
     // when a player shoots a wake-up arrow, let everyone else render it.

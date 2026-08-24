@@ -6,7 +6,7 @@ import AlertTitle from '@mui/material/AlertTitle'
 
 import { useAppSelector } from '../hooks'
 import phaserGame from '../PhaserGame'
-import Game from '../scenes/Game'
+import Bootstrap from '../scenes/Bootstrap'
 import { openURL } from '../utils/helpers'
 import { glacierButton } from '../styles/polar'
 
@@ -64,7 +64,7 @@ export default function VideoConnectionDialog() {
   const cameraLive = videoConnected && cameraOn
   const microphoneOn = useAppSelector((state) => state.user.microphoneOn)
 
-  const webRTC = () => (phaserGame.scene.keys.game as Game).network.webRTC
+  const webRTC = () => (phaserGame.scene.keys.bootstrap as Bootstrap).network.webRTC
 
   return (
     <Backdrop>
