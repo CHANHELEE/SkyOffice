@@ -10,6 +10,8 @@ export default class WebRTC {
   private videoGrid = document.querySelector('.video-grid')
   private myVideo = document.createElement('video')
   private myStream?: MediaStream
+  /** sanitized ids of people who have told us their camera is off */
+  private peerCameraOff = new Set<string>()
   private network: Network
 
   constructor(userId: string, network: Network) {
@@ -44,7 +46,7 @@ export default class WebRTC {
         this.onCalledPeers.set(call.peer, { call, video })
 
         call.on('stream', (userVideoStream) => {
-          this.addVideoStream(video, userVideoStream)
+          this.addVideoStream(video, userVideoStream, call.peer)
         })
       }
       // on close is triggered manually with deleteOnCalledVideoStream()
@@ -90,7 +92,7 @@ export default class WebRTC {
         this.peers.set(sanitizedId, { call, video })
 
         call.on('stream', (userVideoStream) => {
-          this.addVideoStream(video, userVideoStream)
+          this.addVideoStream(video, userVideoStream, sanitizedId)
         })
 
         // on close is triggered manually with deleteVideoStream()
@@ -99,13 +101,57 @@ export default class WebRTC {
   }
 
   // method to add new video stream to videoGrid div
-  addVideoStream(video: HTMLVideoElement, stream: MediaStream) {
+  addVideoStream(video: HTMLVideoElement, stream: MediaStream, peerId?: string) {
     video.srcObject = stream
     video.playsInline = true
     video.addEventListener('loadedmetadata', () => {
       video.play()
     })
+    this.hideTileWhileCameraIsOff(video, peerId)
     if (this.videoGrid) this.videoGrid.append(video)
+  }
+
+  /**
+   * A tile with nobody behind it is worse than no tile at all: it freezes on
+   * whatever frame arrived last, so someone who turned their camera off is left
+   * on other people's screens, still sitting there.
+   *
+   * Two things can hide it. A stream with no video track at all - they were
+   * already off when the call was made - and word from the person themselves,
+   * which is what setPeerCameraOn brings. The browser is no help here:
+   * replaceTrack(null) leaves the receiving track live and unmuted, so waiting
+   * for a mute event waits forever. The mute listeners are still worth having
+   * for the cases the browser does report.
+   */
+  private hideTileWhileCameraIsOff(video: HTMLVideoElement, peerId?: string) {
+    const sync = () => this.syncTile(video, peerId)
+    const stream = video.srcObject as MediaStream | null
+
+    stream?.getVideoTracks().forEach((track) => {
+      track.addEventListener('mute', sync)
+      track.addEventListener('unmute', sync)
+      track.addEventListener('ended', sync)
+    })
+    stream?.addEventListener('addtrack', sync)
+    stream?.addEventListener('removetrack', sync)
+    sync()
+  }
+
+  private syncTile(video: HTMLVideoElement, peerId?: string) {
+    const stream = video.srcObject as MediaStream | null
+    const track = stream?.getVideoTracks()[0]
+    const theirCameraIsOff = peerId !== undefined && this.peerCameraOff.has(peerId)
+    video.style.display = track && !track.muted && !theirCameraIsOff ? '' : 'none'
+  }
+
+  /** someone said their camera went on or off - show or hide their tile */
+  setPeerCameraOn(userId: string, on: boolean) {
+    const id = this.replaceInvalidId(userId)
+    if (on) this.peerCameraOff.delete(id)
+    else this.peerCameraOff.add(id)
+
+    const entry = this.peers.get(id) ?? this.onCalledPeers.get(id)
+    if (entry) this.syncTile(entry.video, id)
   }
 
   // method to remove video stream (when we are the host of the call)
@@ -166,6 +212,9 @@ export default class WebRTC {
       this.myStream.removeTrack(existing)
       this.sendVideoToPeers(null)
       this.myVideo.srcObject = this.myStream
+      // removeTrack() from script raises no event, so my own tile is told directly
+      this.myVideo.style.display = 'none'
+      this.network.sendCameraState(false)
       store.dispatch(setCameraOn(false))
       return
     }
@@ -176,6 +225,8 @@ export default class WebRTC {
       this.myStream.addTrack(track)
       this.sendVideoToPeers(track)
       this.myVideo.srcObject = this.myStream
+      this.myVideo.style.display = ''
+      this.network.sendCameraState(true)
       store.dispatch(setCameraOn(true))
     } catch (error) {
       // the camera was released, so getting it back can fail - a device in use

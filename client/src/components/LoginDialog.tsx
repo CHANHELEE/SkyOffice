@@ -23,6 +23,7 @@ import { frostField, glacierButton, lampButton } from '../styles/polar'
 
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
+import Bootstrap from '../scenes/Bootstrap'
 
 const Wrapper = styled.form`
   position: fixed;
@@ -182,6 +183,10 @@ export default function LoginDialog() {
   const roomName = useAppSelector((state) => state.room.roomName)
   const roomDescription = useAppSelector((state) => state.room.roomDescription)
   const game = phaserGame.scene.keys.game as Game
+  /* the game scene boots a frame or two after the room is joined, and not at
+     all while the tab is in the background - bootstrap holds the same network
+     and is always there by now */
+  const webRTC = () => (phaserGame.scene.keys.bootstrap as Bootstrap).network.webRTC
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -249,7 +254,7 @@ export default function LoginDialog() {
               <WebcamButton
                 variant="outlined"
                 onClick={() => {
-                  game.network.webRTC?.toggleCamera()
+                  webRTC()?.toggleCamera()
                 }}
               >
                 카메라 끄기
@@ -264,11 +269,10 @@ export default function LoginDialog() {
               <WebcamButton
                 variant="outlined"
                 onClick={() => {
-                  const webRTC = game.network.webRTC
                   // first time round there is no stream yet; after that the
                   // camera has been released and has to be asked for again
-                  if (videoConnected) webRTC?.toggleCamera()
-                  else webRTC?.getUserMedia()
+                  if (videoConnected) webRTC()?.toggleCamera()
+                  else webRTC()?.getUserMedia()
                 }}
               >
                 카메라 켜기
