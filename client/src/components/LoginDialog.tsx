@@ -176,6 +176,8 @@ export default function LoginDialog() {
   const [nameFieldEmpty, setNameFieldEmpty] = useState<boolean>(false)
   const dispatch = useAppDispatch()
   const videoConnected = useAppSelector((state) => state.user.videoConnected)
+  const cameraOn = useAppSelector((state) => state.user.cameraOn)
+  const cameraLive = videoConnected && cameraOn
   const roomJoined = useAppSelector((state) => state.room.roomJoined)
   const roomName = useAppSelector((state) => state.room.roomName)
   const roomDescription = useAppSelector((state) => state.room.roomDescription)
@@ -239,26 +241,38 @@ export default function LoginDialog() {
               setName((e.target as HTMLInputElement).value)
             }}
           />
-          {!videoConnected && (
+          {/* the camera starts off, and stays off until someone says otherwise -
+              nobody should find themselves on screen by walking in */}
+          {cameraLive ? (
             <Warning>
-              <Alert variant="outlined" severity="warning">
-                <AlertTitle>알림</AlertTitle>
-                웹캠·마이크가 연결되지 않았습니다
+              <Alert variant="outlined">카메라가 켜져 있습니다</Alert>
+              <WebcamButton
+                variant="outlined"
+                onClick={() => {
+                  game.network.webRTC?.toggleCamera()
+                }}
+              >
+                카메라 끄기
+              </WebcamButton>
+            </Warning>
+          ) : (
+            <Warning>
+              <Alert variant="outlined" severity="info">
+                <AlertTitle>카메라 꺼짐</AlertTitle>
+                켜기 전까지 다른 멤버에게 보이지 않습니다
               </Alert>
               <WebcamButton
                 variant="outlined"
                 onClick={() => {
-                  game.network.webRTC?.getUserMedia()
+                  const webRTC = game.network.webRTC
+                  // first time round there is no stream yet; after that the
+                  // camera has been released and has to be asked for again
+                  if (videoConnected) webRTC?.toggleCamera()
+                  else webRTC?.getUserMedia()
                 }}
               >
-                웹캠 연결
+                카메라 켜기
               </WebcamButton>
-            </Warning>
-          )}
-
-          {videoConnected && (
-            <Warning>
-              <Alert variant="outlined">웹캠이 연결되었습니다</Alert>
             </Warning>
           )}
         </Right>

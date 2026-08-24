@@ -131,24 +131,66 @@ export default class WebRTC {
   }
 
   /**
-   * Camera and microphone on/off.
+   * Hand the outgoing video over to every call already in progress.
    *
-   * Disabling the track rather than stopping it: the call stays up, the other
-   * side just receives black or silence, and turning it back on is instant.
-   * Stopping the track would release the device but tear down what every peer
-   * is receiving, and re-negotiating that is a different job.
-   *
-   * The upstream version put two unstyled English buttons in the corner with
-   * document.createElement. React owns this now, so the state lives in the
-   * store where the buttons can read it.
+   * Each call keeps a transceiver per kind, so the video one is still there
+   * after the track is gone - which is why this looks for it by the receiving
+   * side. Looking at sender.track would find nothing once it has been cleared,
+   * and there would be no way back.
    */
-  toggleCamera() {
-    const track = this.myStream?.getVideoTracks()[0]
-    if (!track) return
-    track.enabled = !track.enabled
-    store.dispatch(setCameraOn(track.enabled))
+  private sendVideoToPeers(track: MediaStreamTrack | null) {
+    const calls = [...this.peers.values(), ...this.onCalledPeers.values()]
+    calls.forEach(({ call }) => {
+      const transceiver = call.peerConnection
+        ?.getTransceivers()
+        .find((t) => (t.sender.track ?? t.receiver.track)?.kind === 'video')
+      transceiver?.sender.replaceTrack(track)
+    })
   }
 
+  /**
+   * Camera off means the camera is off.
+   *
+   * Merely disabling the track sends black frames while the device stays open
+   * and the little light stays on, which is not what anyone means by turning
+   * their camera off in a study room. So the track is stopped and released,
+   * and turning it back on asks the browser for a fresh one and hands that to
+   * every call in progress - no renegotiation, replaceTrack does it in place.
+   */
+  async toggleCamera() {
+    if (!this.myStream) return
+
+    const existing = this.myStream.getVideoTracks()[0]
+    if (existing) {
+      existing.stop()
+      this.myStream.removeTrack(existing)
+      this.sendVideoToPeers(null)
+      this.myVideo.srcObject = this.myStream
+      store.dispatch(setCameraOn(false))
+      return
+    }
+
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({ video: true })
+      const track = fresh.getVideoTracks()[0]
+      this.myStream.addTrack(track)
+      this.sendVideoToPeers(track)
+      this.myVideo.srcObject = this.myStream
+      store.dispatch(setCameraOn(true))
+    } catch (error) {
+      // the camera was released, so getting it back can fail - a device in use
+      // elsewhere, or permission withdrawn since
+      console.error('could not turn the camera back on:', error)
+      window.alert('카메라를 다시 켜지 못했습니다. 다른 프로그램이 사용 중인지 확인해 주세요.')
+    }
+  }
+
+  /**
+   * The microphone only gets muted, not released.
+   *
+   * Unmuting has to be instant - people talk over the gap - and an open
+   * microphone has no light to give anyone the wrong idea.
+   */
   toggleMicrophone() {
     const track = this.myStream?.getAudioTracks()[0]
     if (!track) return

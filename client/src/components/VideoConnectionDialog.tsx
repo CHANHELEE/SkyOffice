@@ -61,6 +61,7 @@ export default function VideoConnectionDialog() {
   const [connectionWarning, setConnectionWarning] = useState(true)
   const videoConnected = useAppSelector((state) => state.user.videoConnected)
   const cameraOn = useAppSelector((state) => state.user.cameraOn)
+  const cameraLive = videoConnected && cameraOn
   const microphoneOn = useAppSelector((state) => state.user.microphoneOn)
 
   const webRTC = () => (phaserGame.scene.keys.game as Game).network.webRTC
@@ -68,25 +69,28 @@ export default function VideoConnectionDialog() {
   return (
     <Backdrop>
       <Wrapper>
-        {!videoConnected && connectionWarning && (
-          <Alert severity="warning" onClose={() => setConnectionWarning(false)}>
-            <AlertTitle>알림</AlertTitle>
-            웹캠이 연결되지 않았습니다
+        {!cameraLive && connectionWarning && (
+          <Alert severity="info" onClose={() => setConnectionWarning(false)}>
+            <AlertTitle>카메라 꺼짐</AlertTitle>
+            켜기 전까지 다른 멤버에게 보이지 않습니다
           </Alert>
         )}
 
-        {videoConnected ? (
-          <>
-            <FrostButton variant="contained" onClick={() => webRTC()?.toggleCamera()}>
-              {cameraOn ? '카메라 끄기' : '카메라 켜기'}
-            </FrostButton>
-            <FrostButton variant="contained" onClick={() => webRTC()?.toggleMicrophone()}>
-              {microphoneOn ? '마이크 끄기' : '마이크 켜기'}
-            </FrostButton>
-          </>
-        ) : (
-          <FrostButton variant="contained" onClick={() => webRTC()?.getUserMedia()}>
-            웹캠 연결
+        <FrostButton
+          variant="contained"
+          onClick={() => {
+            // no stream yet the first time; after that the camera has been
+            // released and the browser has to be asked for it again
+            if (videoConnected) webRTC()?.toggleCamera()
+            else webRTC()?.getUserMedia()
+          }}
+        >
+          {cameraLive ? '카메라 끄기' : '카메라 켜기'}
+        </FrostButton>
+
+        {videoConnected && (
+          <FrostButton variant="contained" onClick={() => webRTC()?.toggleMicrophone()}>
+            {microphoneOn ? '마이크 끄기' : '마이크 켜기'}
           </FrostButton>
         )}
 
