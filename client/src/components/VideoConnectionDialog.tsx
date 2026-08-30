@@ -11,7 +11,7 @@ import { openURL } from '../utils/helpers'
 import { glacierButton } from '../styles/polar'
 
 /** the igloo web service members go back to for attendance and submissions */
-const IGLOO_WEB_URL = 'https://igloo-five.vercel.app/'
+const IGLOO_WEB_URL = 'https://www.myigloos.com/'
 
 const Backdrop = styled.div`
   position: fixed;

@@ -68,9 +68,10 @@ types/             서버·클라이언트 공용 타입 (별도 package)
 
 ```bash
 # 최초 1회: .env 준비 (gitignore 되어 있다)
-cp .env.example .env        # IGLOO_ROOM_PASSWORD 값을 채운다
+cp .env.example .env                    # SUPABASE_* 값을 채운다
+cp client/.env.example client/.env.local
 
-# 서버 (루트에서). IGLOO_ROOM_PASSWORD 없이는 부팅이 실패한다.
+# 서버 (루트에서). SUPABASE_* 없이는 부팅이 실패한다.
 yarn
 yarn start                  # ts-node-dev, 기본 2567 포트
 
@@ -81,16 +82,47 @@ cd client && yarn build         # tsc + vite build
 
 ### 환경변수
 
+서버 (루트 `.env`)
+
 | 이름 | 필수 | 설명 |
 | --- | --- | --- |
-| `IGLOO_ROOM_PASSWORD` | O | igloo 방 입장 비밀번호. **저장소에 기본값을 두지 않는다.** 없으면 서버가 부팅되지 않는다 |
+| `SUPABASE_URL` | O | 이글루 웹이 쓰는 Supabase 프로젝트 URL. 없으면 서버가 부팅되지 않는다 |
+| `SUPABASE_PUBLISHABLE_KEY` | O | publishable(anon) 키. **service_role 키를 여기 두지 않는다** |
 | `PORT` | X | 게임 서버 포트 (기본 2567) |
+
+클라이언트 (`client/.env.local`, Vite 는 `VITE_` 접두사만 노출한다)
+
+| 이름 | 필수 | 설명 |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | O | 위와 같은 프로젝트 |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | O | 위와 같은 키 |
+| `VITE_COOKIE_DOMAIN` | X | 운영은 `.myigloos.com`. **로컬은 비운다** (localhost 에 도메인을 붙이면 쿠키가 버려진다) |
+| `VITE_IGLOO_WEB_URL` | X | 이글루 웹 주소 (기본 `https://www.myigloos.com`) |
+| `VITE_SERVER_URL` | X | 운영 빌드에서만 읽는 Colyseus 주소 |
 
 로컬에서는 루트의 `.env`를 `dotenv`가 읽는다 (`server/index.ts`). `.env` 경로는 cwd가 아니라
 파일 위치 기준으로 잡혀 있다 — `yarn start`는 `server/`에서, Procfile은 루트에서 돌기 때문이다.
 배포 환경에는 `.env`를 두지 말고 실제 환경변수를 주입한다.
 
 `types/`는 별도 패키지이므로 타입을 수정하면 서버·클라이언트 양쪽에서 다시 설치/빌드가 필요할 수 있다.
+
+## 로그인 / 인증
+
+입장은 **이글루 계정(카카오 OAuth + Supabase)** 으로만 가능하다. 공용 비밀번호 입장은 없앴다.
+
+- 세션 쿠키를 `.myigloos.com` 에 걸어 이글루 웹(`www.myigloos.com`)과 메타버스
+  (`www.metabus.myigloos.com`)가 **같은 세션을 공유**한다. 어느 쪽에서 로그인하든 반대쪽이 알아본다.
+  그래서 클라이언트는 `@supabase/supabase-js` 가 아니라 **`@supabase/ssr` 의 `createBrowserClient`** 를 쓴다
+  (localStorage 는 오리진마다 격리되어 세션을 공유할 수 없다). 이글루 웹과 **같은 메이저 버전**을 유지해야 한다.
+- 서버는 `server/iglooAuth.ts` 에서 두 가지를 확인한다. **둘 다 필요하다.**
+  1. 토큰이 진짜인가 (`GET /auth/v1/user`)
+  2. 이글루 명단에 있고 지금 참여 중인가 (`POST /rest/v1/rpc/my_status`)
+
+  카카오로 로그인만 하면 누구나 유효한 토큰을 받는다. 2번이 빠지면 명단과 무관한 사람이 들어온다.
+- 모든 조회는 **사용자 본인의 토큰**으로 나가므로 RLS 가 그대로 적용된다. 게임 서버에 service_role 키를 주지 않는다.
+- 방 안의 이름은 서버가 명단에서 정한다. 클라이언트가 보내는 이름은 **무시한다** (사칭 방지).
+- 거절 사유는 `types/Auth.ts` 의 `AuthFailure` 코드로 구분해 전달한다. 입장 화면이 이 코드로 안내 문구와
+  이동할 곳을 정하므로, 새 사유가 생기면 여기에 추가한다.
 
 ## 코드 컨벤션
 

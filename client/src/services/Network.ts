@@ -6,7 +6,12 @@ import { ItemType } from '../../../types/Items'
 import WebRTC from '../web/WebRTC'
 import { phaserEvents, Event } from '../events/EventCenter'
 import store from '../stores'
-import { setSessionId, setPlayerNameMap, removePlayerNameMap } from '../stores/UserStore'
+import {
+  setSessionId,
+  setPlayerNameMap,
+  removePlayerNameMap,
+  setMyDisplayName,
+} from '../stores/UserStore'
 import { setServerConnected, setJoinedRoomData, setDisconnected } from '../stores/RoomStore'
 import {
   pushChatMessage,
@@ -50,9 +55,16 @@ export default class Network {
     await this.client.getAvailableRooms()
   }
 
-  // method to join the igloo members-only room
-  async joinIgloo(password: string) {
-    this.room = await this.client.joinOrCreate(RoomType.IGLOO, { password })
+  /**
+   * Join the igloo members-only room.
+   *
+   * The token is the igloo login session, and the server checks it against the
+   * roster before letting anyone in - see server/iglooAuth.ts. A refusal comes
+   * back as an error with one of the AuthFailure codes on it, which is the only
+   * thing the entry screen has to explain itself with.
+   */
+  async joinIgloo(token: string) {
+    this.room = await this.client.joinOrCreate(RoomType.IGLOO, { token })
     this.initialize()
   }
 
@@ -171,6 +183,9 @@ export default class Network {
     // when the server sends room data
     this.room.onMessage(Message.SEND_ROOM_DATA, (content) => {
       store.dispatch(setJoinedRoomData(content))
+      // the roster name the server settled on. we do not get to choose it, and
+      // this is the only place it is ever told to us.
+      store.dispatch(setMyDisplayName(content.displayName ?? ''))
     })
 
     // when a user sends a message

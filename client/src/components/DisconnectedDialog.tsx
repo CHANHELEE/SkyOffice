@@ -3,7 +3,7 @@ import styled from 'styled-components'
 import Button from '@mui/material/Button'
 
 /** where members get back in, wherever they happened to be running this from */
-const IGLOO_SKYOFFICE_URL = 'https://igloo-skyoffice.onrender.com/'
+const IGLOO_SKYOFFICE_URL = 'https://www.metabus.myigloos.com/'
 
 const Backdrop = styled.div`
   position: fixed;
