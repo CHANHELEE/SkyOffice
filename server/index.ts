@@ -21,10 +21,20 @@ import { SkyOffice } from './rooms/SkyOffice'
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const port = Number(process.env.PORT || 2567)
-const iglooRoomPassword = process.env.IGLOO_ROOM_PASSWORD
-if (!iglooRoomPassword) {
+
+/**
+ * Entry is decided by asking Supabase whether the person at the door is an
+ * igloo member (see iglooAuth.ts). Without these the room cannot tell members
+ * from anyone else, so refuse to start rather than come up with the door open -
+ * a server that boots and lets everybody in is the worst of the failure modes.
+ *
+ * The publishable (anon) key is the right one here. It is meant to be public,
+ * and every query goes out with the member's own token so RLS does the real
+ * work. The service role key must never be put on this server.
+ */
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(
-    'IGLOO_ROOM_PASSWORD must be set - the igloo room password is never committed to the repo'
+    'SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be set - the room cannot check igloo membership without them'
   )
 }
 const app = express()
@@ -45,12 +55,12 @@ const gameServer = new Server({
 /**
  * igloo members-only room. it is the only game room on this server:
  * the open public lobby and user-created custom rooms were removed on purpose
- * so that outsiders cannot wander in.
+ * so that outsiders cannot wander in. who counts as a member is settled in
+ * onAuth, against the same roster the igloo web service uses.
  */
 gameServer.define(RoomType.IGLOO, SkyOffice, {
   name: 'igloo',
   description: '이글루 스터디 전용 공간',
-  password: iglooRoomPassword,
   autoDispose: false,
 })
 

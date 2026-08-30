@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
-import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Avatar from '@mui/material/Avatar'
 import Alert from '@mui/material/Alert'
@@ -19,7 +18,7 @@ import Nancy from '../images/login/Nancy_login_polar.png'
 import { useAppSelector, useAppDispatch } from '../hooks'
 import { setLoggedIn } from '../stores/UserStore'
 import { getAvatarString, getColorByString } from '../util'
-import { frostField, glacierButton, lampButton } from '../styles/polar'
+import { glacierButton, lampButton } from '../styles/polar'
 
 import phaserGame from '../PhaserGame'
 import Game from '../scenes/Game'
@@ -138,8 +137,28 @@ const Bottom = styled.div`
   justify-content: center;
 `
 
-const NameField = styled(TextField)`
-  ${frostField};
+/** the roster name, shown rather than asked for */
+const NamePlate = styled.div`
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--ice-edge);
+  text-align: center;
+
+  span {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--deep-ice-dim);
+    margin-bottom: 4px;
+  }
+
+  strong {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 20px;
+    color: var(--deep-ice);
+  }
 `
 
 const JoinButton = styled(Button)`
@@ -172,10 +191,12 @@ for (let i = avatars.length - 1; i > 0; i--) {
 }
 
 export default function LoginDialog() {
-  const [name, setName] = useState<string>('')
   const [avatarIndex, setAvatarIndex] = useState<number>(0)
-  const [nameFieldEmpty, setNameFieldEmpty] = useState<boolean>(false)
   const dispatch = useAppDispatch()
+  /* not typed in any more. the server decides what this is from the igloo
+     roster and hands it down on join - see services/supabase.ts for why the
+     login is shared with the web service at all. */
+  const name = useAppSelector((state) => state.user.myDisplayName)
   const videoConnected = useAppSelector((state) => state.user.videoConnected)
   const cameraOn = useAppSelector((state) => state.user.cameraOn)
   const cameraLive = videoConnected && cameraOn
@@ -190,16 +211,17 @@ export default function LoginDialog() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (name === '') {
-      setNameFieldEmpty(true)
-    } else if (roomJoined) {
-      console.log('Join! Name:', name, 'Avatar:', avatars[avatarIndex].name)
-      game.registerKeys()
-      game.myPlayer.setPlayerName(name)
-      game.myPlayer.setPlayerTexture(avatars[avatarIndex].name)
-      game.network.readyToConnect()
-      dispatch(setLoggedIn(true))
-    }
+    if (!roomJoined) return
+
+    game.registerKeys()
+    /* the server ignores the name in this message and writes the roster one, so
+       what goes out here only ever labels our own character locally. it still
+       has to be sent: the name changing from empty is what puts us on everyone
+       else's screen. */
+    game.myPlayer.setPlayerName(name)
+    game.myPlayer.setPlayerTexture(avatars[avatarIndex].name)
+    game.network.readyToConnect()
+    dispatch(setLoggedIn(true))
   }
 
   return (
@@ -234,18 +256,10 @@ export default function LoginDialog() {
           </Swiper>
         </Left>
         <Right>
-          <NameField
-            autoFocus
-            fullWidth
-            label="이름"
-            variant="outlined"
-            color="secondary"
-            error={nameFieldEmpty}
-            helperText={nameFieldEmpty && '이름을 입력해 주세요'}
-            onInput={(e) => {
-              setName((e.target as HTMLInputElement).value)
-            }}
-          />
+          <NamePlate>
+            <span>이름</span>
+            <strong>{name}</strong>
+          </NamePlate>
           {/* the camera starts off, and stays off until someone says otherwise -
               nobody should find themselves on screen by walking in */}
           {cameraLive ? (

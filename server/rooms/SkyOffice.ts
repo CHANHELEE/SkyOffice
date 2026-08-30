@@ -1,4 +1,3 @@
-import bcrypt from 'bcrypt'
 import { Room, Client, ServerError } from 'colyseus'
 import { Dispatcher } from '@colyseus/command'
 import { Player, OfficeState, Computer, Whiteboard } from './schema/OfficeState'
@@ -16,26 +15,20 @@ import {
   WhiteboardRemoveUserCommand,
 } from './commands/WhiteboardUpdateArrayCommand'
 import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
+import { authenticateMember, IglooAuthError, IglooMember } from '../iglooAuth'
 
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
   private name: string
   private description: string
-  private password: string | null = null
 
   async onCreate(options: IRoomData) {
-    const { name, description, password, autoDispose } = options
+    const { name, description, autoDispose } = options
     this.name = name
     this.description = description
     this.autoDispose = autoDispose
 
-    let hasPassword = false
-    if (password) {
-      const salt = await bcrypt.genSalt(10)
-      this.password = await bcrypt.hash(password, salt)
-      hasPassword = true
-    }
-    this.setMetadata({ name, description, hasPassword })
+    this.setMetadata({ name, description })
 
     this.setState(new OfficeState())
 
@@ -110,11 +103,22 @@ export class SkyOffice extends Room<OfficeState> {
       }
     )
 
-    // when receiving updatePlayerName message, call the PlayerUpdateNameCommand
-    this.onMessage(Message.UPDATE_PLAYER_NAME, (client, message: { name: string }) => {
+    /**
+     * The client still sends a name, and we still ignore it.
+     *
+     * The name in the room is whatever the igloo roster says it is, decided in
+     * onAuth and kept on the client. Taking the one in the message would hand
+     * anyone with the developer console a way to walk in wearing someone else's
+     * name, which would undo the point of asking members to log in at all.
+     *
+     * The message itself has to stay: nothing puts a character on screen for
+     * everyone else until the name *changes* from empty, so this is what
+     * announces a new arrival.
+     */
+    this.onMessage(Message.UPDATE_PLAYER_NAME, (client) => {
       this.dispatcher.dispatch(new PlayerUpdateNameCommand(), {
         client,
-        name: message.name,
+        name: (client.auth as IglooMember).displayName,
       })
     })
 
@@ -206,26 +210,38 @@ export class SkyOffice extends Room<OfficeState> {
     })
   }
 
-  async onAuth(client: Client, options: { password: string | null }) {
-    if (this.password) {
-      // bcrypt.compare throws when given a nullish value, so reject a missing password up front
-      const validPassword = options.password
-        ? await bcrypt.compare(options.password, this.password)
-        : false
-      if (!validPassword) {
-        throw new ServerError(403, 'Password is incorrect!')
+  /**
+   * The door. Whatever this returns lands on `client.auth`, so the rest of the
+   * room can rely on the member being real without asking again.
+   *
+   * A failure here is the only thing the entry screen has to go on, so the code
+   * has to say which of the three it was - no session, not on the roster, or on
+   * the roster but not taking part. They need different things done about them.
+   */
+  async onAuth(client: Client, options: { token?: string }) {
+    try {
+      const member = await authenticateMember(options?.token)
+      console.log(`auth  ${client.sessionId} - ${member.displayName}`)
+      return member
+    } catch (error) {
+      if (error instanceof IglooAuthError) {
+        throw new ServerError(error.code, error.message)
       }
+      throw error
     }
-    return true
   }
 
   onJoin(client: Client, options: any) {
-    console.log(`join  ${client.sessionId} - ${this.clients.length} in the room`)
+    const member = client.auth as IglooMember
+    console.log(`join  ${client.sessionId} - ${member.displayName}, ${this.clients.length} in the room`)
     this.state.players.set(client.sessionId, new Player())
     client.send(Message.SEND_ROOM_DATA, {
       id: this.roomId,
       name: this.name,
       description: this.description,
+      // the name this member will wear. the client needs it to label its own
+      // character, and it has no other way of knowing it.
+      displayName: member.displayName,
     })
   }
 

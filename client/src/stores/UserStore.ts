@@ -21,6 +21,8 @@ export const userSlice = createSlice({
     cameraOn: true,
     microphoneOn: true,
     loggedIn: false,
+    /** the name the igloo roster has for me, handed down by the server on join */
+    myDisplayName: '',
     playerNameMap: new Map<string, string>(),
     showJoystick: window.innerWidth < 650,
   },
@@ -40,6 +42,9 @@ export const userSlice = createSlice({
     setLoggedIn: (state, action: PayloadAction<boolean>) => {
       state.loggedIn = action.payload
     },
+    setMyDisplayName: (state, action: PayloadAction<string>) => {
+      state.myDisplayName = action.payload
+    },
     setPlayerNameMap: (state, action: PayloadAction<{ id: string; name: string }>) => {
       state.playerNameMap.set(sanitizeId(action.payload.id), action.payload.name)
     },
@@ -58,6 +63,7 @@ export const {
   setCameraOn,
   setMicrophoneOn,
   setLoggedIn,
+  setMyDisplayName,
   setPlayerNameMap,
   removePlayerNameMap,
   setShowJoystick,

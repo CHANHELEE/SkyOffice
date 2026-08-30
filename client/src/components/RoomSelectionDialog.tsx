@@ -1,12 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import styled, { keyframes } from 'styled-components'
 import Button from '@mui/material/Button'
-import TextField from '@mui/material/TextField'
-import Alert from '@mui/material/Alert'
-import Snackbar from '@mui/material/Snackbar'
 
 import { useAppSelector } from '../hooks'
-import { frostField } from '../styles/polar'
+import { AuthFailure } from '../../../types/Auth'
+import { getAccessToken, signInWithKakao, IGLOO_WEB_URL } from '../services/supabase'
 
 import phaserGame from '../PhaserGame'
 import Bootstrap from '../scenes/Bootstrap'
@@ -95,17 +93,46 @@ const Subtitle = styled.p`
   text-align: center;
 `
 
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: stretch;
-  width: 100%;
+/** kakao's own yellow - members recognise the button before they read it */
+const KakaoButton = styled(Button)`
+  && {
+    width: 100%;
+    font-family: var(--body);
+    font-size: 15px;
+    font-weight: 500;
+    color: #191600;
+    background: #fee500;
+    border-radius: 14px;
+    padding: 11px 0;
+    box-shadow: 0 8px 18px #d9c00040;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+
+    &:hover {
+      background: #ffec3d;
+      box-shadow: 0 12px 24px #d9c00059;
+      transform: translateY(-1px);
+    }
+  }
 `
 
-const PasswordField = styled(TextField)`
-  ${frostField};
-  width: 100%;
+const Note = styled.p`
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--deep-ice-dim);
+  text-align: center;
+`
+
+const Problem = styled.p`
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff1f1cc;
+  border: 1px solid #e0808a80;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #8f2b34;
+  text-align: center;
 `
 
 const EnterButton = styled(Button)`
@@ -191,131 +218,164 @@ const Bar = styled.div`
   animation: ${sweep} 1.5s cubic-bezier(0.62, 0.02, 0.35, 1) infinite;
 `
 
+/**
+ * The door.
+ *
+ * There is nothing to type any more. Entry is the igloo login, so this screen
+ * only ever does one of three things: send somebody to Kakao, walk them
+ * straight in, or explain why it cannot. The explaining is the part worth
+ * caring about - "입장할 수 없습니다" with no reason leaves a member with
+ * nowhere to go, and the three reasons need three different things done.
+ */
+type Phase = 'checking' | 'signedOut' | 'ready' | 'entering' | 'blocked'
+
+/** somewhere on the web service the member has to finish something */
+type Handover = { label: string; href: string }
+
 export default function RoomSelectionDialog() {
-  const [password, setPassword] = useState('')
-  const [passwordFieldEmpty, setPasswordFieldEmpty] = useState(false)
-  const [showSnackbar, setShowSnackbar] = useState(false)
-  const [snackbarMessage, setSnackbarMessage] = useState('')
+  const [phase, setPhase] = useState<Phase>('checking')
+  const [problem, setProblem] = useState('')
+  const [handover, setHandover] = useState<Handover | null>(null)
   const serverConnected = useAppSelector((state) => state.room.serverConnected)
-  const passwordRef = useRef<HTMLInputElement>(null)
 
-  /**
-   * Put the caret in the field so you can type and hit Enter without clicking.
-   * The second pass is for the boot frames: Phaser settling its canvas used to
-   * blow focus back to <body>, and typing silently went nowhere.
-   */
-  useEffect(() => {
-    const focus = () => passwordRef.current?.focus()
-    focus()
-    const settle = window.setTimeout(focus, 120)
-    return () => window.clearTimeout(settle)
-  }, [])
+  const enter = useCallback(async () => {
+    setPhase('entering')
+    setProblem('')
+    setHandover(null)
 
-  const showError = (message: string) => {
-    setSnackbarMessage(message)
-    setShowSnackbar(true)
-  }
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    if (!password) {
-      setPasswordFieldEmpty(true)
-      return
-    }
-    setPasswordFieldEmpty(false)
-
-    if (!serverConnected) {
-      showError('서버에 연결하는 중입니다. 잠시 후 다시 시도해 주세요.')
+    const token = await getAccessToken()
+    if (!token) {
+      setPhase('signedOut')
       return
     }
 
     const bootstrap = phaserGame.scene.keys.bootstrap as Bootstrap
-    bootstrap.network
-      .joinIgloo(password)
-      .then(() => bootstrap.launchGame())
-      .catch((error) => {
-        console.error(error)
-        showError(
-          error?.code === 403
-            ? '비밀번호가 올바르지 않습니다.'
-            : '입장하지 못했습니다. 잠시 후 다시 시도해 주세요.'
-        )
-      })
+    try {
+      await bootstrap.network.joinIgloo(token)
+      bootstrap.launchGame()
+    } catch (error: any) {
+      console.error(error)
+      const message = error?.message
+
+      switch (error?.code) {
+        case AuthFailure.NOT_SIGNED_IN:
+          setProblem(message || '로그인이 만료되었습니다. 다시 로그인해 주세요.')
+          setPhase('signedOut')
+          return
+
+        case AuthFailure.NOT_ON_ROSTER:
+          setProblem(message)
+          setHandover({ label: '이글루에서 코드 입력하기', href: `${IGLOO_WEB_URL}/onboarding` })
+          setPhase('blocked')
+          return
+
+        case AuthFailure.NOT_TAKING_PART:
+          setProblem(message)
+          setHandover({ label: '내 상태 확인하기', href: `${IGLOO_WEB_URL}/waiting` })
+          setPhase('blocked')
+          return
+
+        default:
+          setProblem(message || '입장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+          setHandover(null)
+          setPhase('blocked')
+      }
+    }
+  }, [])
+
+  /* Kakao and Supabase report a refusal on the query string of the address they
+     send the browser back to. Without this the member lands on a screen that
+     looks exactly like a fresh visit and has no idea the login failed. */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const failure = params.get('error_description') || params.get('error')
+    if (failure) {
+      setProblem('로그인이 완료되지 않았습니다. 다시 시도해 주세요.')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
+    getAccessToken().then((token) => setPhase(token ? 'ready' : 'signedOut'))
+  }, [])
+
+  /* Walking in is the whole point, so nobody should have to press anything to
+     do it. Waiting on serverConnected matters on the free instance: a cold
+     start takes the better part of a minute, and joining before it answers
+     just fails. */
+  useEffect(() => {
+    if (phase === 'ready' && serverConnected) enter()
+  }, [phase, serverConnected, enter])
+
+  const signIn = () => {
+    setProblem('')
+    signInWithKakao().catch((error) => {
+      console.error(error)
+      setProblem('카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    })
   }
 
   return (
-    <>
-      <Snackbar
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        open={showSnackbar}
-        autoHideDuration={3000}
-        onClose={() => setShowSnackbar(false)}
-      >
-        <Alert
-          severity="error"
-          variant="outlined"
-          style={{
-            background: '#fff1f1f2',
-            color: '#a3323b',
-            borderColor: '#e0808a',
-            fontFamily: 'var(--body)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+    <Backdrop>
+      <Drawing>
+        <Igloo />
+      </Drawing>
 
-      <Backdrop>
-        <Drawing>
-          <Igloo />
-        </Drawing>
+      <Card>
+        <Mark>ARCTIC</Mark>
+        <Title>이글루</Title>
 
-        <Card>
-          <Mark>ARCTIC</Mark>
-          <Title>이글루</Title>
-          <Subtitle>
-            북극 어딘가, 멤버들만 아는 자리.
-            <br />
-            비밀번호를 넣고 안으로 들어오세요.
-          </Subtitle>
-          <Form onSubmit={handleSubmit}>
-            <PasswordField
-              inputRef={passwordRef}
-              fullWidth
-              size="small"
-              type="password"
-              label="비밀번호"
-              variant="outlined"
-              autoComplete="off"
-              error={passwordFieldEmpty}
-              helperText={passwordFieldEmpty && '비밀번호를 입력해 주세요'}
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-                setPasswordFieldEmpty(false)
-              }}
-            />
-            <EnterButton variant="contained" type="submit">
-              들어가기
-            </EnterButton>
-          </Form>
-        </Card>
-
-        {!serverConnected && (
-          <Status>
-            <StatusHead>
-              <Pulse />
-              서버를 깨우는 중입니다
-            </StatusHead>
-            <Track>
-              <Bar />
-            </Track>
-            <StatusNote>최대 1분 가까이 걸릴 수 있어요.</StatusNote>
-          </Status>
+        {phase === 'signedOut' && (
+          <>
+            <Subtitle>
+              북극 어딘가, 멤버들만 아는 자리.
+              <br />
+              이글루 계정으로 들어오세요.
+            </Subtitle>
+            {problem && <Problem>{problem}</Problem>}
+            <KakaoButton variant="contained" onClick={signIn}>
+              카카오로 시작하기
+            </KakaoButton>
+            <Note>이글루 웹사이트와 같은 계정입니다.</Note>
+          </>
         )}
-      </Backdrop>
-    </>
+
+        {(phase === 'checking' || phase === 'ready' || phase === 'entering') && (
+          <Subtitle>{phase === 'entering' ? '들어가는 중입니다…' : '확인하는 중입니다…'}</Subtitle>
+        )}
+
+        {phase === 'blocked' && (
+          <>
+            <Subtitle>아직 들어올 수 없습니다.</Subtitle>
+            {problem && <Problem>{problem}</Problem>}
+            {handover ? (
+              <EnterButton
+                variant="contained"
+                onClick={() => {
+                  window.location.href = handover.href
+                }}
+              >
+                {handover.label}
+              </EnterButton>
+            ) : (
+              <EnterButton variant="contained" onClick={enter}>
+                다시 시도
+              </EnterButton>
+            )}
+          </>
+        )}
+      </Card>
+
+      {!serverConnected && (
+        <Status>
+          <StatusHead>
+            <Pulse />
+            서버를 깨우는 중입니다
+          </StatusHead>
+          <Track>
+            <Bar />
+          </Track>
+          <StatusNote>최대 1분 가까이 걸릴 수 있어요.</StatusNote>
+        </Status>
+      )}
+    </Backdrop>
   )
 }
