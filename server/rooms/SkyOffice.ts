@@ -16,6 +16,7 @@ import {
 } from './commands/WhiteboardUpdateArrayCommand'
 import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
 import { authenticateMember, IglooAuthError, IglooMember } from '../iglooAuth'
+import { requestCheckIn } from '../iglooCheckIn'
 
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
@@ -120,6 +121,21 @@ export class SkyOffice extends Room<OfficeState> {
         client,
         name: (client.auth as IglooMember).displayName,
       })
+    })
+
+    /**
+     * "출석하기" 버튼. 방에 연결된 사람만 여기까지 올 수 있고, 그 사실이
+     * 곧 출석의 근거다. 판단은 전부 이글루 웹이 한다 - 시간과 자격을 두
+     * 곳에서 따지면 언젠가 어긋난다.
+     *
+     * 토큰은 입장 때 받은 것을 쓰지 않고 매번 새로 받는다. 모임은 몇 시간씩
+     * 이어지는데 그 토큰은 한 시간이면 만료된다.
+     */
+    this.onMessage(Message.CHECK_IN, async (client, message: { token?: string }) => {
+      const member = client.auth as IglooMember
+      const result = await requestCheckIn(message?.token, member.userId)
+      console.log(`check-in ${member.displayName} - ${result.ok ? 'ok' : 'refused'}: ${result.message}`)
+      client.send(Message.CHECK_IN, result)
     })
 
     // when a player is ready to connect, call the PlayerReadyToConnectCommand

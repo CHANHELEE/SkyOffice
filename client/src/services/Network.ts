@@ -4,6 +4,7 @@ import { Message } from '../../../types/Messages'
 import { RoomType } from '../../../types/Rooms'
 import { ItemType } from '../../../types/Items'
 import WebRTC from '../web/WebRTC'
+import { getAccessToken } from './supabase'
 import { phaserEvents, Event } from '../events/EventCenter'
 import store from '../stores'
 import {
@@ -317,6 +318,33 @@ export default class Network {
   // method to register event listener and call back function when an arrow hit me
   onArrowHitMe(callback: (clientId: string) => void, context?: any) {
     phaserEvents.on(Event.ARROW_HIT_ME, callback, context)
+  }
+
+  /**
+   * Ask to be marked present for today's meeting.
+   *
+   * The room is asked rather than the igloo web service directly: the API key
+   * that call needs would have to sit in this bundle, where it is not a secret,
+   * and a call from here proves nothing about being in the room. Going through
+   * the room means only somebody actually connected can ask.
+   *
+   * A fresh token goes with it. The one from joining is an hour old at most,
+   * and members sit here for longer than that.
+   */
+  async checkIn(): Promise<{ ok: boolean; message: string }> {
+    if (!this.room) return { ok: false, message: '방에 연결되어 있지 않습니다' }
+
+    const token = await getAccessToken()
+    const room = this.room
+
+    return new Promise((resolve) => {
+      // the room answers on the same message; one reply, then stop listening
+      const stop = room.onMessage(Message.CHECK_IN, (result: { ok: boolean; message: string }) => {
+        stop()
+        resolve(result)
+      })
+      room.send(Message.CHECK_IN, { token })
+    })
   }
 
   // method to send player name to Colyseus server

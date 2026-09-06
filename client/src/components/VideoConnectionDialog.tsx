@@ -3,6 +3,7 @@ import styled from 'styled-components'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
+import Snackbar from '@mui/material/Snackbar'
 
 import { useAppSelector } from '../hooks'
 import phaserGame from '../PhaserGame'
@@ -64,10 +65,39 @@ export default function VideoConnectionDialog() {
   const cameraLive = videoConnected && cameraOn
   const microphoneOn = useAppSelector((state) => state.user.microphoneOn)
 
+  const [checkingIn, setCheckingIn] = useState(false)
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+
   const webRTC = () => (phaserGame.scene.keys.bootstrap as Bootstrap).network.webRTC
+  const network = () => (phaserGame.scene.keys.bootstrap as Bootstrap).network
+
+  const checkIn = async () => {
+    setCheckingIn(true)
+    // the room answers with why it refused, so there is nothing to invent here
+    setResult(await network().checkIn())
+    setCheckingIn(false)
+  }
 
   return (
     <Backdrop>
+      {/* 결과는 캔버스 위에 잠깐 띄운다. window.alert 는 게임 루프를 멈춰
+          세우고, 닫기 전까지 방 안이 얼어붙는다. */}
+      <Snackbar
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        open={result !== null}
+        autoHideDuration={result?.ok ? 3000 : 6000}
+        onClose={() => setResult(null)}
+      >
+        <Alert
+          severity={result?.ok ? 'success' : 'warning'}
+          variant="filled"
+          onClose={() => setResult(null)}
+          style={{ fontFamily: 'var(--body)' }}
+        >
+          {result?.message}
+        </Alert>
+      </Snackbar>
+
       <Wrapper>
         {!cameraLive && connectionWarning && (
           <Alert severity="info" onClose={() => setConnectionWarning(false)}>
@@ -97,6 +127,9 @@ export default function VideoConnectionDialog() {
         <Divider />
         <FrostButton variant="contained" onClick={() => openURL(IGLOO_WEB_URL)}>
           이글루 웹사이트
+        </FrostButton>
+        <FrostButton variant="contained" onClick={checkIn} disabled={checkingIn}>
+          {checkingIn ? '출석하는 중…' : '출석하기'}
         </FrostButton>
       </Wrapper>
     </Backdrop>
