@@ -20,14 +20,20 @@ import {
   pushPlayerLeftMessage,
 } from '../stores/ChatStore'
 import { setWhiteboardUrls } from '../stores/WhiteboardStore'
+import AutoCheckIn from './AutoCheckIn'
+import { AttendanceStatus } from '../utils/autoCheckInPlan'
 
 /** how often a member who is doing nothing still says hello */
 const HEARTBEAT_INTERVAL = 4 * 60 * 1000
+
+/** give up on an attendance lookup the room never answers (e.g. an older server) */
+const ATTENDANCE_STATUS_TIMEOUT = 15 * 1000
 
 export default class Network {
   private client: Client
   private room?: Room<IOfficeState>
   private heartbeat?: number
+  private autoCheckIn = new AutoCheckIn(this)
   webRTC?: WebRTC
 
   mySessionId!: string
@@ -187,6 +193,7 @@ export default class Network {
      */
     this.room.onLeave((code) => {
       this.stopHeartbeat()
+      this.autoCheckIn.stop()
       console.warn('left the igloo room, code:', code)
       store.dispatch(setDisconnected(true))
     })
@@ -359,6 +366,37 @@ export default class Network {
       })
       room.send(Message.CHECK_IN, { token })
     })
+  }
+
+  /**
+   * My meeting time today, as the igloo web service has it, asked through the
+   * room for the same reason checkIn() is. Never rejects: a failure or no
+   * answer comes back as ok: false.
+   */
+  async attendanceStatus(): Promise<AttendanceStatus> {
+    if (!this.room) return { ok: false, message: '방에 연결되어 있지 않습니다' }
+
+    const token = await getAccessToken()
+    const room = this.room
+
+    return new Promise((resolve) => {
+      const done = (status: AttendanceStatus) => {
+        window.clearTimeout(timer)
+        stop()
+        resolve(status)
+      }
+      const timer = window.setTimeout(
+        () => done({ ok: false, message: '출석 정보를 확인하지 못했습니다' }),
+        ATTENDANCE_STATUS_TIMEOUT
+      )
+      const stop = room.onMessage(Message.ATTENDANCE_STATUS, done)
+      room.send(Message.ATTENDANCE_STATUS, { token })
+    })
+  }
+
+  /** start checking in on my behalf - from the moment I am actually in the room */
+  startAutoCheckIn() {
+    this.autoCheckIn.start()
   }
 
   // method to send player name to Colyseus server

@@ -43,11 +43,36 @@ function subjectOf(token: string): string | null {
   }
 }
 
-export async function requestCheckIn(
+/**
+ * What the igloo web service says about today's meeting for one member - the
+ * room asks so the browser can check in on its own (see client autoCheckIn).
+ * Only the fields the room passes on are listed.
+ */
+export interface AttendanceStatus {
+  ok: boolean
+  message?: string
+  /** has an online time today */
+  eligible?: boolean
+  /** not checked in yet and the window is open */
+  prompt?: boolean
+  /** not_open | on_time | late | present | absent | unavailable ... */
+  state?: string
+  /** check-in opens - ten minutes before the meeting starts */
+  opensAt?: string
+  lateAt?: string
+}
+
+type Refusal = { ok: false; message: string }
+
+/**
+ * One call to the igloo web service on behalf of the member in the room. The
+ * checks before the fetch are the same for every endpoint, so they live here.
+ */
+async function callIglooWeb(
+  path: string,
   token: string | null | undefined,
-  /** who the room says is asking, settled back in onAuth */
   expectedUserId: string
-): Promise<CheckInResult> {
+): Promise<Refusal | { ok: true; body: any }> {
   const url = process.env.IGLOO_WEB_URL
   const key = process.env.IGLOO_API_KEY
 
@@ -77,20 +102,49 @@ export async function requestCheckIn(
   const timer = setTimeout(() => abort.abort(), TIMEOUT_MS)
 
   try {
-    const response = await fetch(`${url.replace(/\/$/, '')}/api/attendance/check-in`, {
+    const response = await fetch(`${url.replace(/\/$/, '')}${path}`, {
       method: 'POST',
       headers: { 'x-igloo-api-key': key, 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
       signal: abort.signal,
     })
-
-    const body = (await response.json()) as CheckInResult
-    // 실패 사유는 이글루 웹이 정한다. 여기서 다시 지어내면 두 곳에서 갈린다.
-    return { ok: Boolean(body?.ok), message: body?.message ?? '출석하지 못했습니다', already: body?.already }
+    return { ok: true, body: await response.json() }
   } catch (error) {
-    console.error('check-in request failed:', error)
+    console.error(`${path} request failed:`, error)
     return { ok: false, message: '이글루 웹에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요' }
   } finally {
     clearTimeout(timer)
+  }
+}
+
+export async function requestCheckIn(
+  token: string | null | undefined,
+  /** who the room says is asking, settled back in onAuth */
+  expectedUserId: string
+): Promise<CheckInResult> {
+  const result = await callIglooWeb('/api/attendance/check-in', token, expectedUserId)
+  if (!('body' in result)) return result
+
+  const body = result.body as CheckInResult
+  // 실패 사유는 이글루 웹이 정한다. 여기서 다시 지어내면 두 곳에서 갈린다.
+  return { ok: Boolean(body?.ok), message: body?.message ?? '출석하지 못했습니다', already: body?.already }
+}
+
+export async function requestAttendanceStatus(
+  token: string | null | undefined,
+  expectedUserId: string
+): Promise<AttendanceStatus> {
+  const result = await callIglooWeb('/api/attendance/status', token, expectedUserId)
+  if (!('body' in result)) return result
+
+  const body = result.body ?? {}
+  if (!body.ok) return { ok: false, message: body.message ?? '출석 정보를 확인하지 못했습니다' }
+  return {
+    ok: true,
+    eligible: Boolean(body.eligible),
+    prompt: Boolean(body.prompt),
+    state: body.state,
+    opensAt: body.opensAt,
+    lateAt: body.lateAt,
   }
 }

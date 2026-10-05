@@ -16,4 +16,5 @@ export enum Message {
   HEARTBEAT,
   CAMERA_STATE,
   CHECK_IN,
+  ATTENDANCE_STATUS,
 }

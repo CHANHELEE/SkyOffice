@@ -12,6 +12,7 @@ import Chat from './components/Chat'
 import HelperButtonGroup from './components/HelperButtonGroup'
 import MobileVirtualJoystick from './components/MobileVirtualJoystick'
 import DisconnectedDialog from './components/DisconnectedDialog'
+import CheckInAlert from './components/CheckInAlert'
 
 const Backdrop = styled.div`
   position: absolute;
@@ -59,6 +60,9 @@ function App() {
       {ui}
       {/* Render HelperButtonGroup if no dialogs are opened. */}
       {!computerDialogOpen && !whiteboardDialogOpen && <HelperButtonGroup />}
+      {/* outside the switch above: the automatic check-in can land while a
+          whiteboard or computer is open */}
+      {loggedIn && <CheckInAlert />}
       {/* Render on top of everything: nothing works once the connection is gone. */}
       {disconnected && <DisconnectedDialog />}
     </Backdrop>

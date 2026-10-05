@@ -221,6 +221,8 @@ export default function LoginDialog() {
     game.myPlayer.setPlayerName(name)
     game.myPlayer.setPlayerTexture(avatars[avatarIndex].name)
     game.network.readyToConnect()
+    // in the room from here on, which is what makes it fair to check in for them
+    game.network.startAutoCheckIn()
     dispatch(setLoggedIn(true))
   }
 
