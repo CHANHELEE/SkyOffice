@@ -213,15 +213,19 @@ export default function Chat() {
       setReadyToSubmit(true)
       return
     }
-    // move focus back to the game
-    inputRef.current?.blur()
 
     const val = inputValue.trim()
     setInputValue('')
-    if (val) {
-      game.network.addChatMessage(val)
-      game.myPlayer.updateDialogBubble(val)
+    if (!val) {
+      // Enter on an empty line is the way back to the game without the mouse
+      inputRef.current?.blur()
+      return
     }
+
+    // stay in the input: a conversation is usually more than one line, and
+    // having to click back in after every message is what people tripped over
+    game.network.addChatMessage(val)
+    game.myPlayer.updateDialogBubble(val)
   }
 
   const scrollToBottom = () => {
