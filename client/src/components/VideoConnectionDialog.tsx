@@ -3,12 +3,12 @@ import styled from 'styled-components'
 import Button from '@mui/material/Button'
 import Alert from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
-import Snackbar from '@mui/material/Snackbar'
 
 import { useAppSelector } from '../hooks'
 import phaserGame from '../PhaserGame'
 import Bootstrap from '../scenes/Bootstrap'
 import { openURL } from '../utils/helpers'
+import { checkInAndReport } from '../services/AutoCheckIn'
 import { glacierButton } from '../styles/polar'
 
 /** the igloo web service members go back to for attendance and submissions */
@@ -65,39 +65,16 @@ export default function VideoConnectionDialog() {
   const cameraLive = videoConnected && cameraOn
   const microphoneOn = useAppSelector((state) => state.user.microphoneOn)
 
-  const [checkingIn, setCheckingIn] = useState(false)
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const checkingIn = useAppSelector((state) => state.attendance.checkingIn)
 
   const webRTC = () => (phaserGame.scene.keys.bootstrap as Bootstrap).network.webRTC
   const network = () => (phaserGame.scene.keys.bootstrap as Bootstrap).network
 
-  const checkIn = async () => {
-    setCheckingIn(true)
-    // the room answers with why it refused, so there is nothing to invent here
-    setResult(await network().checkIn())
-    setCheckingIn(false)
-  }
+  // the result shows up in CheckInAlert, the same place the automatic one does
+  const checkIn = () => checkInAndReport(network())
 
   return (
     <Backdrop>
-      {/* 결과는 캔버스 위에 잠깐 띄운다. window.alert 는 게임 루프를 멈춰
-          세우고, 닫기 전까지 방 안이 얼어붙는다. */}
-      <Snackbar
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        open={result !== null}
-        autoHideDuration={result?.ok ? 3000 : 6000}
-        onClose={() => setResult(null)}
-      >
-        <Alert
-          severity={result?.ok ? 'success' : 'warning'}
-          variant="filled"
-          onClose={() => setResult(null)}
-          style={{ fontFamily: 'var(--body)' }}
-        >
-          {result?.message}
-        </Alert>
-      </Snackbar>
-
       <Wrapper>
         {!cameraLive && connectionWarning && (
           <Alert severity="info" onClose={() => setConnectionWarning(false)}>

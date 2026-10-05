@@ -16,7 +16,7 @@ import {
 } from './commands/WhiteboardUpdateArrayCommand'
 import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
 import { authenticateMember, IglooAuthError, IglooMember } from '../iglooAuth'
-import { requestCheckIn } from '../iglooCheckIn'
+import { requestCheckIn, requestAttendanceStatus } from '../iglooCheckIn'
 
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
@@ -136,6 +136,20 @@ export class SkyOffice extends Room<OfficeState> {
       const result = await requestCheckIn(message?.token, member.userId)
       console.log(`check-in ${member.displayName} - ${result.ok ? 'ok' : 'refused'}: ${result.message}`)
       client.send(Message.CHECK_IN, result)
+    })
+
+    /**
+     * 자동 출석이 언제 "출석하기"를 누를지 정하려고 묻는 내 모임 시간.
+     * 출석과 같은 이유로 이글루 웹은 방을 거쳐서만 부른다.
+     *
+     * 이 서버의 시계를 같이 보낸다. 브라우저 시계가 몇 분만 틀려도 출석
+     * 창이 열리기 전에 눌러 버리거나 한참 늦게 누르게 되는데, 기준이 되는
+     * 시각(opensAt)은 서버 쪽 시계로 정해진 값이다.
+     */
+    this.onMessage(Message.ATTENDANCE_STATUS, async (client, message: { token?: string }) => {
+      const member = client.auth as IglooMember
+      const status = await requestAttendanceStatus(message?.token, member.userId)
+      client.send(Message.ATTENDANCE_STATUS, { ...status, serverNow: Date.now() })
     })
 
     // when a player is ready to connect, call the PlayerReadyToConnectCommand
