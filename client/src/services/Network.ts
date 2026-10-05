@@ -102,6 +102,21 @@ export default class Network {
     store.dispatch(setSessionId(this.room.sessionId))
     this.webRTC = new WebRTC(this.mySessionId, this)
 
+    /**
+     * Whether the room's first full state has landed yet.
+     *
+     * That first state replays everyone already inside: onAdd and then onChange
+     * fire for each of them, name included, exactly as if they had all just
+     * walked in. They did not - we did. So their names are not announced in the
+     * chat; only somebody whose name shows up after this point is a new arrival.
+     * onStateChange runs after the decode that fires those callbacks, so the
+     * first one marks the end of the replay.
+     */
+    let initialStateSynced = false
+    this.room.onStateChange.once(() => {
+      initialStateSynced = true
+    })
+
     // new instance added to the players MapSchema
     this.room.state.players.onAdd = (player: IPlayer, key: string) => {
       if (key === this.mySessionId) return
@@ -116,7 +131,7 @@ export default class Network {
           if (field === 'name' && value !== '') {
             phaserEvents.emit(Event.PLAYER_JOINED, player, key)
             store.dispatch(setPlayerNameMap({ id: key, name: value }))
-            store.dispatch(pushPlayerJoinedMessage(value))
+            if (initialStateSynced) store.dispatch(pushPlayerJoinedMessage(value))
           }
         })
       }
@@ -250,11 +265,10 @@ export default class Network {
   /**
    * Announce the players who were already in the room when we joined.
    *
-   * onAdd fires for them, but the only thing that puts a character on screen is
-   * their name *changing* - and theirs was set long before we got here, so
-   * onChange never replays it. Emitting from onAdd would not help either:
-   * initialize() runs while joining, before the game scene exists to listen.
-   * So the game scene calls this itself once its listeners are up.
+   * The first state sync does replay their names through onChange, but that
+   * happens while joining, before the game scene exists to listen - the
+   * PLAYER_JOINED it emits goes nowhere. So the game scene calls this itself
+   * once its listeners are up.
    */
   announceExistingPlayers() {
     this.room?.state.players.forEach((player: IPlayer, key: string) => {
