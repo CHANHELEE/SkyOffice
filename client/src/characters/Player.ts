@@ -9,6 +9,12 @@ export const RUN_SPEED = 400
 export const RUN_ANIM_TIME_SCALE = 1.5
 
 /**
+ * Chat bubbles go over everything in the scene - other players' names, items,
+ * the falling snow (9000), item prompts and the wake-up effect (10000).
+ */
+const DIALOG_BUBBLE_DEPTH = 100000
+
+/**
  * shifting distance for sitting animation
  * format: direction: [xShift, yShift, depthShift]
  */
@@ -48,9 +54,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
     this.playerContainer = this.scene.add.container(this.x, this.y - 30).setDepth(5000)
 
-    // add dialogBubble to playerContainer
-    this.playerDialogBubble = this.scene.add.container(0, 0).setDepth(5000)
-    this.playerContainer.add(this.playerDialogBubble)
+    /* The bubble is not inside playerContainer on purpose. A child is drawn at
+       its container's depth, and every player's container shares 5000 - so a
+       bubble got painted over by the names of whoever joined later. On its own
+       it can sit above everything; it follows the container every frame. */
+    this.playerDialogBubble = this.scene.add
+      .container(this.playerContainer.x, this.playerContainer.y)
+      .setDepth(DIALOG_BUBBLE_DEPTH)
+    this.scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.followPlayer, this)
 
     // add playerName to playerContainer
     this.playerName = this.scene.add
@@ -75,8 +86,16 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     return direction === 'up' || direction === 'left' || direction === 'right' ? direction : 'down'
   }
 
+  /** keep the bubble over the head it belongs to */
+  private followPlayer() {
+    this.playerDialogBubble.setPosition(this.playerContainer.x, this.playerContainer.y)
+  }
+
   updateDialogBubble(content: string) {
     this.clearDialogBubble()
+    this.followPlayer()
+    // the latest thing said stays readable when two bubbles overlap
+    this.scene.children.bringToTop(this.playerDialogBubble)
 
     // preprocessing for dialog bubble text (maximum 70 characters)
     const dialogBubbleText = content.length <= 70 ? content : content.substring(0, 70).concat('...')
@@ -117,5 +136,14 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
   private clearDialogBubble() {
     clearTimeout(this.timeoutID)
     this.playerDialogBubble.removeAll(true)
+  }
+
+  destroy(fromScene?: boolean) {
+    // the bubble is not a child of anything that gets destroyed with us
+    clearTimeout(this.timeoutID)
+    this.scene?.events.off(Phaser.Scenes.Events.POST_UPDATE, this.followPlayer, this)
+    this.playerDialogBubble.destroy()
+
+    super.destroy(fromScene)
   }
 }
