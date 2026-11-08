@@ -2,6 +2,8 @@ import React from 'react'
 import styled from 'styled-components'
 import Button from '@mui/material/Button'
 
+import { useAppSelector } from '../hooks'
+
 /** where members get back in, wherever they happened to be running this from */
 const IGLOO_SKYOFFICE_URL = 'https://www.metabus.myigloos.com/'
 
@@ -56,15 +58,31 @@ const Link = styled.a`
 `
 
 export default function DisconnectedDialog() {
+  // moved to another tab or device, rather than the connection dying
+  const replaced = useAppSelector((state) => state.room.replaced)
+
   return (
     <Backdrop>
       <Wrapper>
-        <Title>서버와의 연결이 끊어졌습니다</Title>
-        <Description>
-          채팅과 다른 멤버의 움직임이 더 이상 전달되지 않습니다.
-          <br />
-          아래 버튼을 눌러 다시 입장해 주세요.
-        </Description>
+        {replaced ? (
+          <>
+            <Title>다른 곳에서 입장했습니다</Title>
+            <Description>
+              같은 계정으로 다른 탭이나 기기에서 들어와서 이 화면은 종료되었습니다.
+              <br />
+              이 화면에서 계속하려면 다시 입장해 주세요. 그러면 다른 쪽이 종료됩니다.
+            </Description>
+          </>
+        ) : (
+          <>
+            <Title>서버와의 연결이 끊어졌습니다</Title>
+            <Description>
+              채팅과 다른 멤버의 움직임이 더 이상 전달되지 않습니다.
+              <br />
+              아래 버튼을 눌러 다시 입장해 주세요.
+            </Description>
+          </>
+        )}
         <Button
           variant="contained"
           color="secondary"

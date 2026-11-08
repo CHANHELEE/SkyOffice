@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import styled from 'styled-components'
 
 import { useAppSelector } from './hooks'
@@ -13,6 +13,7 @@ import HelperButtonGroup from './components/HelperButtonGroup'
 import MobileVirtualJoystick from './components/MobileVirtualJoystick'
 import DisconnectedDialog from './components/DisconnectedDialog'
 import CheckInAlert from './components/CheckInAlert'
+import phaserGame from './PhaserGame'
 
 const Backdrop = styled.div`
   position: absolute;
@@ -26,9 +27,20 @@ function App() {
   const whiteboardDialogOpen = useAppSelector((state) => state.whiteboard.whiteboardDialogOpen)
   const roomJoined = useAppSelector((state) => state.room.roomJoined)
   const disconnected = useAppSelector((state) => state.room.disconnected)
+  const replaced = useAppSelector((state) => state.room.replaced)
+
+  /* Moved to another tab or device: this page is no longer in the room, so it
+     should not keep showing it. Left as it was, the last frame - everyone
+     standing where they were - stays under the notice and looks like we are
+     still inside. Stopping the scene leaves only the backdrop behind it. */
+  useEffect(() => {
+    if (replaced) phaserGame.scene.stop('game')
+  }, [replaced])
 
   let ui: JSX.Element
-  if (loggedIn) {
+  if (replaced) {
+    ui = <></>
+  } else if (loggedIn) {
     if (computerDialogOpen) {
       /* Render ComputerDialog if user is using a computer. */
       ui = <ComputerDialog />
@@ -59,10 +71,10 @@ function App() {
     <Backdrop>
       {ui}
       {/* Render HelperButtonGroup if no dialogs are opened. */}
-      {!computerDialogOpen && !whiteboardDialogOpen && <HelperButtonGroup />}
+      {!computerDialogOpen && !whiteboardDialogOpen && !replaced && <HelperButtonGroup />}
       {/* outside the switch above: the automatic check-in can land while a
           whiteboard or computer is open */}
-      {loggedIn && <CheckInAlert />}
+      {loggedIn && !replaced && <CheckInAlert />}
       {/* Render on top of everything: nothing works once the connection is gone. */}
       {disconnected && <DisconnectedDialog />}
     </Backdrop>

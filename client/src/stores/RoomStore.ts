@@ -9,6 +9,8 @@ export const roomSlice = createSlice({
     roomName: '',
     roomDescription: '',
     disconnected: false,
+    /** closed because this member came in again somewhere else */
+    replaced: false,
   },
   reducers: {
     setServerConnected: (state, action: PayloadAction<boolean>) => {
@@ -19,6 +21,9 @@ export const roomSlice = createSlice({
     },
     setDisconnected: (state, action: PayloadAction<boolean>) => {
       state.disconnected = action.payload
+    },
+    setReplaced: (state, action: PayloadAction<boolean>) => {
+      state.replaced = action.payload
     },
     setJoinedRoomData: (
       state,
@@ -31,7 +36,12 @@ export const roomSlice = createSlice({
   },
 })
 
-export const { setServerConnected, setRoomJoined, setJoinedRoomData, setDisconnected } =
-  roomSlice.actions
+export const {
+  setServerConnected,
+  setRoomJoined,
+  setJoinedRoomData,
+  setDisconnected,
+  setReplaced,
+} = roomSlice.actions
 
 export default roomSlice.reducer

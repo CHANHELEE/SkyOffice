@@ -13,7 +13,13 @@ import {
   removePlayerNameMap,
   setMyDisplayName,
 } from '../stores/UserStore'
-import { setServerConnected, setJoinedRoomData, setDisconnected } from '../stores/RoomStore'
+import {
+  setServerConnected,
+  setJoinedRoomData,
+  setDisconnected,
+  setReplaced,
+} from '../stores/RoomStore'
+import { SessionEnd } from '../../../types/Auth'
 import {
   pushChatMessage,
   pushPlayerJoinedMessage,
@@ -196,6 +202,16 @@ export default class Network {
       this.stopHeartbeat()
       this.autoCheckIn.stop()
       console.warn('left the igloo room, code:', code)
+
+      /* The same member came in again somewhere else and that one is the one
+         in the room now. Let go of the camera and any screen share - another
+         tab on this machine is likely to want them - and do not walk back in
+         on our own: two tabs doing that would keep throwing each other out. */
+      if (code === SessionEnd.REPLACED) {
+        this.webRTC?.close()
+        store.getState().computer.shareScreenManager?.onClose()
+        store.dispatch(setReplaced(true))
+      }
       store.dispatch(setDisconnected(true))
     })
 

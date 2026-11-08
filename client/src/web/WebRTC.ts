@@ -53,6 +53,30 @@ export default class WebRTC {
     })
   }
 
+  /** set once the page is done with the room; nothing may turn the camera back on */
+  private closed = false
+
+  /**
+   * Stop the camera and microphone, hang up, and take every tile off the page -
+   * this page is done with the room. The tiles live in .video-grid outside
+   * React, so nothing else would clear them: left alone, everyone's last frame
+   * stays on a page that is no longer in the room.
+   */
+  close() {
+    this.closed = true
+    for (const { call, video } of [...this.peers.values(), ...this.onCalledPeers.values()]) {
+      call.close()
+      video.remove()
+    }
+    this.peers.clear()
+    this.onCalledPeers.clear()
+    this.myVideo.remove()
+    this.myStream?.getTracks().forEach((track) => track.stop())
+    this.myStream = undefined
+    this.myPeer.destroy()
+    store.dispatch(setVideoConnected(false))
+  }
+
   // check if permission has been granted before
   checkPreviousPermission() {
     const permissionName = 'microphone' as PermissionName
@@ -69,6 +93,11 @@ export default class WebRTC {
         audio: true,
       })
       .then((stream) => {
+        // the permission prompt can outlive our place in the room
+        if (this.closed) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
         this.myStream = stream
         this.addVideoStream(this.myVideo, this.myStream)
         store.dispatch(setCameraOn(true))
