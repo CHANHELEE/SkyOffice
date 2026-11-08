@@ -19,10 +19,46 @@ import ChatMessageUpdateCommand from './commands/ChatMessageUpdateCommand'
 import { authenticateMember, IglooAuthError, IglooMember } from '../iglooAuth'
 import { requestCheckIn, requestAttendanceStatus } from '../iglooCheckIn'
 
+/**
+ * Anything a member sends is checked before it touches the room. Messages come
+ * straight off the socket, and a logged-in member can send whatever they like
+ * from the developer console - a wrong type assigned to the room state throws,
+ * and so does a computer or whiteboard id that does not exist.
+ */
+const isNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+const isText = (value: unknown, maxLength = Infinity): value is string =>
+  typeof value === 'string' && value.length <= maxLength
+
 export class SkyOffice extends Room<OfficeState> {
   private dispatcher = new Dispatcher(this)
   private name: string
   private description: string
+
+  /**
+   * onMessage, with the room kept alive whatever the handler does.
+   *
+   * Colyseus 0.14 calls handlers straight from the socket's message event with
+   * nothing around them, so one exception - or one rejected promise from an
+   * async handler - took the whole process down: every member thrown out, the
+   * chat history gone. The checks in each handler are what should stop bad
+   * input; this is what stops the next mistake from costing everyone the room.
+   */
+  private handle<T = any>(
+    type: Message,
+    callback: (client: Client, message: T) => void | Promise<void>
+  ) {
+    this.onMessage(type, (client: Client, message: T) => {
+      const report = (error: unknown) =>
+        console.error(`message ${Message[type]} from ${client.sessionId} failed:`, error)
+      try {
+        const result = callback(client, message)
+        if (result instanceof Promise) result.catch(report)
+      } catch (error) {
+        report(error)
+      }
+    })
+  }
 
   async onCreate(options: IRoomData) {
     const { name, description, autoDispose } = options
@@ -45,7 +81,8 @@ export class SkyOffice extends Room<OfficeState> {
     }
 
     // when a player connect to a computer, add to the computer connectedUser array
-    this.onMessage(Message.CONNECT_TO_COMPUTER, (client, message: { computerId: string }) => {
+    this.handle(Message.CONNECT_TO_COMPUTER, (client, message: { computerId: string }) => {
+      if (!isText(message?.computerId)) return
       this.dispatcher.dispatch(new ComputerAddUserCommand(), {
         client,
         computerId: message.computerId,
@@ -53,7 +90,8 @@ export class SkyOffice extends Room<OfficeState> {
     })
 
     // when a player disconnect from a computer, remove from the computer connectedUser array
-    this.onMessage(Message.DISCONNECT_FROM_COMPUTER, (client, message: { computerId: string }) => {
+    this.handle(Message.DISCONNECT_FROM_COMPUTER, (client, message: { computerId: string }) => {
+      if (!isText(message?.computerId)) return
       this.dispatcher.dispatch(new ComputerRemoveUserCommand(), {
         client,
         computerId: message.computerId,
@@ -61,8 +99,9 @@ export class SkyOffice extends Room<OfficeState> {
     })
 
     // when a player stop sharing screen
-    this.onMessage(Message.STOP_SCREEN_SHARE, (client, message: { computerId: string }) => {
-      const computer = this.state.computers.get(message.computerId)
+    this.handle(Message.STOP_SCREEN_SHARE, (client, message: { computerId: string }) => {
+      const computer = isText(message?.computerId) && this.state.computers.get(message.computerId)
+      if (!computer) return
       computer.connectedUser.forEach((id) => {
         this.clients.forEach((cli) => {
           if (cli.sessionId === id && cli.sessionId !== client.sessionId) {
@@ -73,7 +112,8 @@ export class SkyOffice extends Room<OfficeState> {
     })
 
     // when a player connect to a whiteboard, add to the whiteboard connectedUser array
-    this.onMessage(Message.CONNECT_TO_WHITEBOARD, (client, message: { whiteboardId: string }) => {
+    this.handle(Message.CONNECT_TO_WHITEBOARD, (client, message: { whiteboardId: string }) => {
+      if (!isText(message?.whiteboardId)) return
       this.dispatcher.dispatch(new WhiteboardAddUserCommand(), {
         client,
         whiteboardId: message.whiteboardId,
@@ -81,9 +121,10 @@ export class SkyOffice extends Room<OfficeState> {
     })
 
     // when a player disconnect from a whiteboard, remove from the whiteboard connectedUser array
-    this.onMessage(
+    this.handle(
       Message.DISCONNECT_FROM_WHITEBOARD,
       (client, message: { whiteboardId: string }) => {
+        if (!isText(message?.whiteboardId)) return
         this.dispatcher.dispatch(new WhiteboardRemoveUserCommand(), {
           client,
           whiteboardId: message.whiteboardId,
@@ -92,15 +133,17 @@ export class SkyOffice extends Room<OfficeState> {
     )
 
     // when receiving updatePlayer message, call the PlayerUpdateCommand
-    this.onMessage(
+    this.handle(
       Message.UPDATE_PLAYER,
       (client, message: { x: number; y: number; anim: string; running: boolean }) => {
+        // anim names are short keys like adam_run_left
+        if (!isNumber(message?.x) || !isNumber(message?.y) || !isText(message?.anim, 64)) return
         this.dispatcher.dispatch(new PlayerUpdateCommand(), {
           client,
           x: message.x,
           y: message.y,
           anim: message.anim,
-          running: message.running ?? false,
+          running: message.running === true,
         })
       }
     )
@@ -117,7 +160,7 @@ export class SkyOffice extends Room<OfficeState> {
      * everyone else until the name *changes* from empty, so this is what
      * announces a new arrival.
      */
-    this.onMessage(Message.UPDATE_PLAYER_NAME, (client) => {
+    this.handle(Message.UPDATE_PLAYER_NAME, (client) => {
       this.dispatcher.dispatch(new PlayerUpdateNameCommand(), {
         client,
         name: (client.auth as IglooMember).displayName,
@@ -132,7 +175,7 @@ export class SkyOffice extends Room<OfficeState> {
      * 토큰은 입장 때 받은 것을 쓰지 않고 매번 새로 받는다. 모임은 몇 시간씩
      * 이어지는데 그 토큰은 한 시간이면 만료된다.
      */
-    this.onMessage(Message.CHECK_IN, async (client, message: { token?: string }) => {
+    this.handle(Message.CHECK_IN, async (client, message: { token?: string }) => {
       const member = client.auth as IglooMember
       const result = await requestCheckIn(message?.token, member.userId)
       console.log(
@@ -149,26 +192,27 @@ export class SkyOffice extends Room<OfficeState> {
      * 창이 열리기 전에 눌러 버리거나 한참 늦게 누르게 되는데, 기준이 되는
      * 시각(opensAt)은 서버 쪽 시계로 정해진 값이다.
      */
-    this.onMessage(Message.ATTENDANCE_STATUS, async (client, message: { token?: string }) => {
+    this.handle(Message.ATTENDANCE_STATUS, async (client, message: { token?: string }) => {
       const member = client.auth as IglooMember
       const status = await requestAttendanceStatus(message?.token, member.userId)
       client.send(Message.ATTENDANCE_STATUS, { ...status, serverNow: Date.now() })
     })
 
     // when a player is ready to connect, call the PlayerReadyToConnectCommand
-    this.onMessage(Message.READY_TO_CONNECT, (client) => {
+    this.handle(Message.READY_TO_CONNECT, (client) => {
       const player = this.state.players.get(client.sessionId)
       if (player) player.readyToConnect = true
     })
 
     // when a player is ready to connect, call the PlayerReadyToConnectCommand
-    this.onMessage(Message.VIDEO_CONNECTED, (client) => {
+    this.handle(Message.VIDEO_CONNECTED, (client) => {
       const player = this.state.players.get(client.sessionId)
       if (player) player.videoConnected = true
     })
 
     // when a player disconnect a stream, broadcast the signal to the other player connected to the stream
-    this.onMessage(Message.DISCONNECT_STREAM, (client, message: { clientId: string }) => {
+    this.handle(Message.DISCONNECT_STREAM, (client, message: { clientId: string }) => {
+      if (!isText(message?.clientId)) return
       this.clients.forEach((cli) => {
         if (cli.sessionId === message.clientId) {
           cli.send(Message.DISCONNECT_STREAM, client.sessionId)
@@ -188,7 +232,8 @@ export class SkyOffice extends Room<OfficeState> {
      * live and unmuted, so the last frame just sits there - so it is said out
      * loud and everyone else hides or shows that tile.
      */
-    this.onMessage(Message.CAMERA_STATE, (client, message: { on: boolean }) => {
+    this.handle(Message.CAMERA_STATE, (client, message: { on: boolean }) => {
+      if (typeof message?.on !== 'boolean') return
       this.broadcast(
         Message.CAMERA_STATE,
         { clientId: client.sessionId, on: message.on },
@@ -196,13 +241,14 @@ export class SkyOffice extends Room<OfficeState> {
       )
     })
 
-    this.onMessage(Message.HEARTBEAT, () => {})
+    this.handle(Message.HEARTBEAT, () => {})
 
     // when a player shoots a wake-up arrow, let everyone else render it.
     // arrows are cosmetic, so they are broadcast rather than kept in room state.
-    this.onMessage(
+    this.handle(
       Message.SHOOT_ARROW,
       (client, message: { x: number; y: number; direction: string }) => {
+        if (!isNumber(message?.x) || !isNumber(message?.y) || !isText(message?.direction, 8)) return
         this.broadcast(
           Message.SHOOT_ARROW,
           {
@@ -218,7 +264,8 @@ export class SkyOffice extends Room<OfficeState> {
 
     // the shooter detects the hit and reports it. only the player who was hit is
     // told, so the sound stays between the two of them.
-    this.onMessage(Message.ARROW_HIT, (client, message: { targetId: string }) => {
+    this.handle(Message.ARROW_HIT, (client, message: { targetId: string }) => {
+      if (!isText(message?.targetId)) return
       this.clients.forEach((cli) => {
         if (cli.sessionId === message.targetId) {
           cli.send(Message.ARROW_HIT, { clientId: client.sessionId })
@@ -227,7 +274,8 @@ export class SkyOffice extends Room<OfficeState> {
     })
 
     // when a player send a chat message, update the message array and broadcast to all connected clients except the sender
-    this.onMessage(Message.ADD_CHAT_MESSAGE, (client, message: { content: string }) => {
+    this.handle(Message.ADD_CHAT_MESSAGE, (client, message: { content: string }) => {
+      if (!isText(message?.content)) return
       // update the message array (so that players join later can also see the message)
       this.dispatcher.dispatch(new ChatMessageUpdateCommand(), {
         client,
