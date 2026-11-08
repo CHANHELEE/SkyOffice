@@ -3,6 +3,7 @@ import { Dispatcher } from '@colyseus/command'
 import { Player, OfficeState, Computer, Whiteboard } from './schema/OfficeState'
 import { Message } from '../../types/Messages'
 import { IRoomData } from '../../types/Rooms'
+import { SessionEnd } from '../../types/Auth'
 import { whiteboardRoomIds } from './schema/OfficeState'
 import PlayerUpdateCommand from './commands/PlayerUpdateCommand'
 import PlayerUpdateNameCommand from './commands/PlayerUpdateNameCommand'
@@ -266,6 +267,22 @@ export class SkyOffice extends Room<OfficeState> {
   onJoin(client: Client, options: any) {
     const member = client.auth as IglooMember
     console.log(`join  ${client.sessionId} - ${member.displayName}, ${this.clients.length} in the room`)
+
+    /**
+     * One member, one way in. A second tab or another device used to put a
+     * second character in the room - and check in twice. The newest entry
+     * wins: whatever this member already had open is closed, and onLeave clears
+     * it off everyone's screen like any other exit.
+     *
+     * Done here, not in onAuth, so that a join that fails never costs the
+     * member the place they already had. userId is the one Supabase vouched
+     * for in onAuth - nothing the client said about itself.
+     */
+    this.clients.forEach((other) => {
+      if (other === client || (other.auth as IglooMember | undefined)?.userId !== member.userId) return
+      console.log(`replace ${other.sessionId} - ${member.displayName} came in again as ${client.sessionId}`)
+      other.leave(SessionEnd.REPLACED)
+    })
     this.state.players.set(client.sessionId, new Player())
     client.send(Message.SEND_ROOM_DATA, {
       id: this.roomId,

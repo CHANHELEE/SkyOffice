@@ -19,3 +19,14 @@ export enum AuthFailure {
   /** supabase is unreachable or erroring - nothing the member did */
   LOOKUP_FAILED = 4004,
 }
+
+/**
+ * Why the room closed a connection that had already got in.
+ *
+ * Sits next to AuthFailure, in the same 4xxx space Colyseus leaves for us, so
+ * the client can tell "you were moved" from "the connection died" and say so.
+ */
+export enum SessionEnd {
+  /** the same member came in again from another tab or device - only the newest stays */
+  REPLACED = 4010,
+}
