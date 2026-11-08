@@ -6,7 +6,7 @@
  */
 
 /** check in this long before the meeting starts */
-export const AUTO_CHECK_IN_LEAD_MS = 9 * 60 * 1000
+export const AUTO_CHECK_IN_LEAD_MS = 3 * 60 * 1000
 
 /**
  * The igloo web service opens check-in ten minutes before the start

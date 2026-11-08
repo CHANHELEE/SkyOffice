@@ -134,7 +134,9 @@ export class SkyOffice extends Room<OfficeState> {
     this.onMessage(Message.CHECK_IN, async (client, message: { token?: string }) => {
       const member = client.auth as IglooMember
       const result = await requestCheckIn(message?.token, member.userId)
-      console.log(`check-in ${member.displayName} - ${result.ok ? 'ok' : 'refused'}: ${result.message}`)
+      console.log(
+        `check-in ${member.displayName} - ${result.ok ? (result.already ? 'already' : 'ok') : 'refused'}: ${result.message}`
+      )
       client.send(Message.CHECK_IN, result)
     })
 

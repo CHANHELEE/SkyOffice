@@ -21,6 +21,7 @@ import {
 } from '../stores/ChatStore'
 import { setWhiteboardUrls } from '../stores/WhiteboardStore'
 import AutoCheckIn from './AutoCheckIn'
+import type { RoomCheckInResult } from '../utils/checkInMessage'
 import { AttendanceStatus } from '../utils/autoCheckInPlan'
 
 /** how often a member who is doing nothing still says hello */
@@ -352,7 +353,7 @@ export default class Network {
    * A fresh token goes with it. The one from joining is an hour old at most,
    * and members sit here for longer than that.
    */
-  async checkIn(): Promise<{ ok: boolean; message: string }> {
+  async checkIn(): Promise<RoomCheckInResult> {
     if (!this.room) return { ok: false, message: '방에 연결되어 있지 않습니다' }
 
     const token = await getAccessToken()
@@ -360,7 +361,7 @@ export default class Network {
 
     return new Promise((resolve) => {
       // the room answers on the same message; one reply, then stop listening
-      const stop = room.onMessage(Message.CHECK_IN, (result: { ok: boolean; message: string }) => {
+      const stop = room.onMessage(Message.CHECK_IN, (result: RoomCheckInResult) => {
         stop()
         resolve(result)
       })

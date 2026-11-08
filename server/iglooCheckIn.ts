@@ -18,6 +18,8 @@ export interface CheckInResult {
   message: string
   /** 이미 찍혀 있던 경우. 실패가 아니라서 따로 구분한다. */
   already?: boolean
+  /** present | late - 알림 문구를 방 쪽에서 고를 때 쓴다 */
+  status?: string
 }
 
 /** 이글루 웹이 느릴 때 방 안에서 버튼이 영영 안 돌아오는 것을 막는다. */
@@ -127,7 +129,12 @@ export async function requestCheckIn(
 
   const body = result.body as CheckInResult
   // 실패 사유는 이글루 웹이 정한다. 여기서 다시 지어내면 두 곳에서 갈린다.
-  return { ok: Boolean(body?.ok), message: body?.message ?? '출석하지 못했습니다', already: body?.already }
+  return {
+    ok: Boolean(body?.ok),
+    message: body?.message ?? '출석하지 못했습니다',
+    already: Boolean(body?.already),
+    status: body?.status,
+  }
 }
 
 export async function requestAttendanceStatus(
