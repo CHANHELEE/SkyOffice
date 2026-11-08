@@ -1,6 +1,7 @@
 import store from '../stores'
 import { setCheckingIn, setCheckInResult } from '../stores/AttendanceStore'
 import { AutoCheckInPlan, planAutoCheckIn } from '../utils/autoCheckInPlan'
+import { checkInMessage } from '../utils/checkInMessage'
 import type Network from './Network'
 
 /** how often to look at the clock. a hidden tab stretches this to about a minute */
@@ -16,18 +17,23 @@ const REFRESH_MS = 10 * 60 * 1000
  * either way, and a press while one is already on its way is dropped instead
  * of sending a second.
  */
-export async function checkInAndReport(network: Network) {
+export async function checkInAndReport(
+  network: Network,
+  /** the meeting's start, when the automatic check-in is the one pressing */
+  startsAt?: number
+) {
   if (store.getState().attendance.checkingIn) return
   store.dispatch(setCheckingIn(true))
   try {
-    store.dispatch(setCheckInResult(await network.checkIn()))
+    const shown = checkInMessage(await network.checkIn(), startsAt)
+    if (shown) store.dispatch(setCheckInResult(shown))
   } finally {
     store.dispatch(setCheckingIn(false))
   }
 }
 
 /**
- * Checks in for a member who is in the room nine minutes before their meeting,
+ * Checks in for a member who is in the room three minutes before their meeting,
  * so being there is enough and nobody has to remember the button.
  *
  * It runs here in the browser on purpose: only somebody whose tab is open in
@@ -76,6 +82,6 @@ export default class AutoCheckIn {
     const plan = this.plan
     if (!plan || Date.now() < plan.at || this.tried.has(plan.startsAt)) return
     this.tried.add(plan.startsAt)
-    checkInAndReport(this.network)
+    checkInAndReport(this.network, plan.startsAt)
   }
 }
